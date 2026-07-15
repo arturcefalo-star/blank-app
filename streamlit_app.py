@@ -50,7 +50,7 @@ def adicionar_ponto():
 
 #COLUNA 
 melhorias_clique = [
-    {"qtd": 1, "custo": 1},
+    {"qtd": 1, "custo": 100},
     {"qtd": 5, "custo": 500},
     {"qtd": 10, "custo": 1000},
     {"qtd": 50, "custo": 5000},
