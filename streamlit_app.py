@@ -11,6 +11,8 @@ if "foto_sorteada" not in st.session_state:
     st.session_state.foto_sorteada = None
 if "sorteado" not in st.session_state:
     st.session_state.sorteado = True
+if "poder_base" not in st.session_state:
+    st.session_state.poder_base = 1
 
 col3, col4, col5, col6 = st.columns(4)
 
@@ -94,7 +96,7 @@ with col3:
             )[0]
             st.session_state.foto_sorteada = sorteado
 
-            st.session_state.poder_clique += sorteado["bonus"]
+            st.session_state.poder_clique = st.session_state.poder_base + sorteado["bonus"]
         else:
             st.warning("Pontos insuficiente")
 
@@ -122,7 +124,7 @@ with col1:
             time.sleep(0.1) 
             if st.session_state.pontos >= item['custo']:
                 st.session_state.pontos -= item['custo']
-                st.session_state.poder_clique += item['qtd']
+                st.session_state.poder_clique 
                 st.rerun()
             else:
                 st.warning("Pontos insuficiente")
