@@ -124,7 +124,7 @@ with col1:
             time.sleep(0.1) 
             if st.session_state.pontos >= item['custo']:
                 st.session_state.pontos -= item['custo']
-                st.session_state.poder_clique 
+                st.session_state.poder_clique += item['qtd']
                 st.rerun()
             else:
                 st.warning("Pontos insuficiente")
