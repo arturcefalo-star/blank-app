@@ -1,6 +1,6 @@
 import streamlit as st
 
-st.title("Clicker Game (Beta)")
+st.title("alooooo")
 
 if "pontos" not in st.session_state:
     st.session_state.pontos = 0
@@ -18,12 +18,12 @@ def comprar_melhoria():
     else:
         st.session_state.erro_dinheiro = True
 
-st.image("logo.png", width=200)
-
 st.button("            Click Here          ", on_click=adicionar_ponto)
+
 
 st.write(f"Pontos: {st.session_state.pontos}")
 st.write(f"Poder de clique: {st.session_state.poder_clique}")
+
 
 st.button("Melhoria +1 = 100 Pontos", on_click=comprar_melhoria, use_container_width=True)
 
