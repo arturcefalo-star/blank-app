@@ -3,27 +3,11 @@ import time
 import random
 from streamlit_autorefresh import st_autorefresh
 
-if "mostrar_foto" not in st.session_state:
-    st.session_state.mostrar_foto = False
+# 1. INICIALIZAÇÃO DO ESTADO (SESSION STATE)
 if "pontos" not in st.session_state:
     st.session_state.pontos = 0
-if "foto_sorteada" not in st.session_state:
-    st.session_state.foto_sorteada = None
-if "sorteado" not in st.session_state:
-    st.session_state.sorteado = True
 if "poder_base" not in st.session_state:
     st.session_state.poder_base = 1
-if "slot_1" not in st.session_state:
-    st.session_state.slot_1 = None
-if "slot_2" not in st.session_state:
-    st.session_state.slot_2 = None
-if "ovo1_bloqueado" not in st.session_state:
-    st.session_state.ovo1_bloqueado = False
-
-col3, col4 = st.columns(2)
-
-if "pontos" not in st.session_state:
-    st.session_state.pontos = 0
 if "poder_clique" not in st.session_state:
     st.session_state.poder_clique = 1
 if "pontos_por_segundo" not in st.session_state:
@@ -31,16 +15,16 @@ if "pontos_por_segundo" not in st.session_state:
 if "ultimo_tick" not in st.session_state:
     st.session_state.ultimo_tick = time.time()
 
-def comprar_melhoria(custo, tipo, qtd):
-    if st.session_state.pontos >= custo:
-        st.session_state.pontos = max(0, st.session_state.pontos - custo)
-        if tipo == "clique":
-            st.session_state.poder_clique += qtd
-        elif tipo == "passivo":
-            st.session_state.pontos_por_segundo += qtd 
-        time.sleep(0.5)
-        st.rerun()
+# Guardar os pets equipados em cada slot
+if "pet_slot_1" not in st.session_state:
+    st.session_state.pet_slot_1 = None
+if "pet_slot_2" not in st.session_state:
+    st.session_state.pet_slot_2 = None
 
+if "ovo1_bloqueado" not in st.session_state:
+    st.session_state.ovo1_bloqueado = False
+
+# 2. SISTEMA DE REFRESH PASSIVO (AUTO-CLICKER)
 if st.session_state.pontos_por_segundo > 0:
     st_autorefresh(interval=900, key="autoclicker")
 
@@ -51,10 +35,99 @@ if tempo_passado >= 1.0:
     ciclos = int(tempo_passado)
     st.session_state.pontos += st.session_state.pontos_por_segundo * ciclos
     st.session_state.ultimo_tick = agora - (tempo_passado - ciclos)
-def adicionar_ponto():
+
+# Função para recalcular o poder de clique com base no poder base + pets equipados
+def atualizar_poder_clique():
+    bonus_total = 0
+    if st.session_state.pet_slot_1:
+        bonus_total += st.session_state.pet_slot_1["bonus"]
+    if st.session_state.pet_slot_2:
+        bonus_total += st.session_state.pet_slot_2["bonus"]
+    st.session_state.poder_clique = st.session_state.poder_base + bonus_total
+
+# 3. INTERFACE PRINCIPAL
+st.title("Clicker Game (Beta)")
+
+st.write("Trilha sonora: on/off ")
+st.audio("musica67.mp3")
+
+# Botão principal de clique
+if st.button("            Click Here          ", use_container_width=True):
     st.session_state.pontos += st.session_state.poder_clique
 
-#COLUNA 
+# Exibição de Status
+st.metric(label="Pontos Atuais", value=st.session_state.pontos)
+col_status1, col_status2 = st.columns(2)
+col_status1.write(f"**Poder de clique:** {st.session_state.poder_clique} (Base: {st.session_state.poder_base})")
+col_status2.write(f"**Pontos por segundo:** {st.session_state.pontos_por_segundo}")
+
+st.markdown("---")
+
+# 4. SISTEMA DE OVOS (PETS)
+st.subheader("🥚 Sistema de Ovos")
+col3, col4 = st.columns(2)
+
+with col3:
+    st.write("### Ovo Comum")
+    st.write("Siruriru: 50% (+1 Ponto)")
+    st.write("Peppa Pig: 35% (+5 Pontos)")
+    st.write("Manoel G: 15% (+10 Pontos)")
+    
+    custo_ovo1 = 100
+    desativar_ovo1 = st.session_state.ovo1_bloqueado or st.session_state.pontos < custo_ovo1
+    
+    if st.button(f"Abrir Ovo = {custo_ovo1} Pontos", disabled=desativar_ovo1, key="botao_ovo1"):
+        st.session_state.pontos -= custo_ovo1
+        sorteado_ovo1 = random.choices(
+           [{"nome": "Siruriru", "arquivo": "logo3.png", "bonus": 1, "chance": "50%"}, 
+            {"nome": "Peppa Pig", "arquivo": "logo2.png", "bonus": 5, "chance": "35%"},
+            {"nome": "Manoel G", "arquivo": "logo1.png", "bonus": 10, "chance": "15%"}],
+           weights=[50, 35, 15], k=1
+        )[0]
+        st.session_state.pet_slot_1 = sorteado_ovo1
+        atualizar_poder_clique()
+        st.rerun()
+
+    if st.session_state.pet_slot_1:
+        pet = st.session_state.pet_slot_1
+        st.write("**Pet Equipado:**")
+        st.image(pet["arquivo"], width=150)
+        st.caption(f"{pet['nome']} ({pet['chance']}) | +{pet['bonus']} por clique")
+
+with col4:
+    st.write("### Ovo Raro")
+    st.write("Dora A.: 50% (+10 Pontos)")
+    st.write("Sonic: 35% (+50 Pontos)")
+    st.write("Michael J.: 15% (+100 Pontos)")
+    
+    custo_ovo2 = 1000
+    desativar_ovo2 = st.session_state.pontos < custo_ovo2
+    
+    if st.button(f"Abrir Ovo = {custo_ovo2} Pontos", disabled=desativar_ovo2, key="botao_ovo2"):
+        st.session_state.pontos -= custo_ovo2
+        st.session_state.ovo1_bloqueado = True  # Bloqueia o ovo 1 se desejado por sua mecânica original
+        
+        sorteado_ovo2 = random.choices(
+           [{"nome": "Dora A.", "arquivo": "logo4.png", "bonus": 10, "chance": "50%"}, 
+            {"nome": "Sonic", "arquivo": "logo5.png", "bonus": 50, "chance": "35%"},
+            {"nome": "Michael J.", "arquivo": "logo6.png", "bonus": 100, "chance": "15%"}],
+           weights=[50, 35, 15], k=1
+        )[0]
+        st.session_state.pet_slot_2 = sorteado_ovo2
+        atualizar_poder_clique()
+        st.rerun()
+
+    if st.session_state.pet_slot_2:
+        pet = st.session_state.pet_slot_2
+        st.write("**Pet Equipado:**")
+        st.image(pet["arquivo"], width=150)
+        st.caption(f"{pet['nome']} ({pet['chance']}) | +{pet['bonus']} por clique")
+
+st.markdown("---")
+
+# 5. LOJA DE MELHORIAS (CLIQUE E AUTO-CLICK)
+col1, col2 = st.columns(2)
+
 melhorias_clique = [
     {"qtd": 1, "custo": 100},
     {"qtd": 5, "custo": 500},
@@ -68,7 +141,6 @@ melhorias_clique = [
     {"qtd": 10000, "custo": 1000000},
 ]
 
-#COLUNA 2
 melhorias_passivas = [
     {"qtd": 5, "custo": 200},
     {"qtd": 10, "custo": 600},
@@ -78,123 +150,35 @@ melhorias_passivas = [
     {"qtd": 1000, "custo": 72500},
 ]
 
-st.title("Clicker Game (Beta)")
-st.write("Trilha sonora: on/off ")
-st.audio("musica67.mp3")
-
-if st.button("            Click Here          "):
-    st.session_state.pontos += st.session_state.poder_clique
-
-st.write(f"Pontos: {st.session_state.pontos}")
-st.write(f"Poder de clique: {st.session_state.poder_clique}")
-st.write(f"Pontos por segundo: {st.session_state.pontos_por_segundo}")
-
-with col3:
-    st.write("Pocentagens:")
-    st.write("Siruriru: 50%")
-    st.write("Peppa Pig: 35%")
-    st.write("Manoel G: 15%")
-    if st.button("Abrir Ovo = 100 Pontos", disabled=st.session_state.ovo1_bloqueado, key="botao_ovo1_btn_slot1"):
-        if st.session_state.pontos >= 1:
-            st.session_state.pontos -= 1
-
-            sorteado_ovo1 = random.choices(
-               [{"nome": "Siruriru", "arquivo": "logo3.png", "bonus": 1, "chance": "50%"}, 
-                {"nome": "Peppa Pig", "arquivo": "logo2.png", "bonus": 5, "chance": "35%"},
-                {"nome": "Manoel G", "arquivo": "logo1.png", "bonus": 10, "chance": "15%"}],
-               weights = [50, 35, 15], k=1
-            )[0]
-            st.session_state.foto_sorteada_1 = sorteado_ovo1
-
-            st.session_state.ovo1 = sorteado_ovo1
-
-            st.session_state.poder_clique = st.session_state.poder_base + sorteado_ovo1["bonus"]
-        else:
-            st.warning("Pontos insuficiente")
-
-    if "foto_sorteada_1" in st.session_state and st.session_state.foto_sorteada_1:
-        ganhou = st.session_state.foto_sorteada_1
-
-        if "arquivo" in ganhou:
-            st.write(f"Seus Pets:")
-            st.image(ganhou["arquivo"], width=188)
-            st.write(f"{ganhou.get('chance')} - {ganhou['nome']} + {ganhou.get('bonus')} Ponto(s)")
-
-with col4:
-    st.write("Pocentagens:")
-    st.write("Dora A.: 50%")
-    st.write("Sonic: 35%")
-    st.write("Michael J.: 15%")
-    if st.button("Abrir Ovo = 1000 Pontos", key="botao_ovo2_btn_slot2"):
-        if st.session_state.pontos >= 1:
-            st.session_state.pontos -= 1
-            st.session_state.ovo1_bloqueado = True
-
-            sorteado2 = random.choices(
-               [{"nome": "Dora A.", "arquivo": "logo4.png", "bonus": 10, "chance": "50%"}, 
-                {"nome": "Sonic", "arquivo": "logo5.png", "bonus": 50, "chance": "35%"},
-                {"nome": "Michael J.", "arquivo": "logo6.png", "bonus": 100, "chance": "15%"}],
-               weights = [50, 35, 15], k=1
-            )[0]
-            st.session_state.foto_sorteada_2 = sorteado2
-
-            st.session_state.poder_clique = st.session_state.poder_base + sorteado2["bonus"]
-        else:
-            st.warning("Pontos insuficiente")
-
-    if "foto_sorteada_2" in st.session_state and st.session_state.foto_sorteada_2:
-        ganhou = st.session_state.foto_sorteada_2
-
-        if "arquivo" in ganhou:
-            st.write(f"Seus Pets:")
-            st.image(ganhou["arquivo"], width=100)
-            st.write(f"{ganhou.get('chance')} - {ganhou['nome']} + {ganhou.get('bonus')} Ponto(s)")
-        st.rerun()
-st.markdown("---")
-
-col1, col2 = st.columns(2)
-
-#COLUNA 1:
 with col1:
-    st.subheader("Melhoria Clicker")
+    st.subheader("🛒 Melhoria Clicker")
     for item in melhorias_clique:
-        texto = f"Melhoria +{item['qtd']} = {item['custo']} Pontos"
-
+        texto = f"Melhoria +{item['qtd']} = {item['custo']} Pts"
         desativado = st.session_state.pontos < item['custo']
 
-        if st.button(texto, key=f"clique_{item['qtd']}", disabled=desativado):
-            time.sleep(0.1) 
-            if st.session_state.pontos >= item['custo']:
-                st.session_state.pontos -= item['custo']
-
-                st.session_state.poder_clique += item['qtd']
-
-                st.session_state.poder_base += 1             
-                bonus_pet_atual = 0
-                if "foto_sorteada" in st.session_state and st.session_state.foto_sorteada:
-                    bonus_pet_atual = st.session_state.foto_sorteada.get("bonus")
-                st.rerun()
-            else:
-                st.warning("Pontos insuficiente")
+        if st.button(texto, key=f"clique_{item['qtd']}", disabled=desativado, use_container_width=True):
+            st.session_state.pontos -= item['custo']
+            st.session_state.poder_base += item['qtd']
+            atualizar_poder_clique()  # Recalcula somando os pets ativos ao novo poder base
+            st.rerun()
 
 with col2:
-    st.subheader("Auto Clickers")
+    st.subheader("⚡ Auto Clickers")
     for item in melhorias_passivas:
-        texto = f"Gerador +{item['qtd']}/s = {item['custo']} Pontos"
-
+        texto = f"Gerador +{item['qtd']}/s = {item['custo']} Pts"
         desativado = st.session_state.pontos < item['custo']
 
-        if st.button(texto, key=f"passivo_{item['qtd']}", disabled=desativado):
-            time.sleep(0.1)
-            if st.session_state.pontos >= item['custo']:
-                st.session_state.pontos -= item['custo']
-                st.session_state.pontos_por_segundo += item['qtd']
-                st.rerun()
-            else:
-                st.warning("Pontos insuficiente")
+        if st.button(texto, key=f"passivo_{item['qtd']}", disabled=desativado, use_container_width=True):
+            st.session_state.pontos -= item['custo']
+            st.session_state.pontos_por_segundo += item['qtd']
+            st.rerun()
 
-st.subheader("Atualizações:")
-st.write("(1.0.0(Beta) - Lançamento!!!")
-st.write("(1.0.1) - Correção de bugs")
-st.write("(1.1.2) - Adição dos Ovos, correção de bugs e preços balanceados")
-st.write("(1.2.3) - Adição de novos pets e ovos e o log de atualizações")
+# 6. LOG DE ATUALIZAÇÕES
+st.markdown("---")
+st.subheader("Notas de Atualização")
+st.markdown("""
+*   **(1.2.3)** - Adição de novos pets, ovos e registro de atualizações.
+*   **(1.1.2)** - Adição de ovos, correção de bugs e balanceamento de preços.
+*   **(1.0.1)** - Correção de bugs estruturais de cálculo de pontos.
+*   **(1.0.0-Beta)** - Lançamento inicial! 🎉
+""")
