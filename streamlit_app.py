@@ -184,6 +184,8 @@ melhorias_clique = [
 melhorias_passivas = [
     {"qtd": 5, "custo": 200}, {"qtd": 10, "custo": 600}, {"qtd": 20, "custo": 1100},
     {"qtd": 100, "custo": 7500}, {"qtd": 200, "custo": 14500}, {"qtd": 1000, "custo": 72500},
+    {"qtd": 2000, "custo": 145000}, {"qtd": 5000, "custo": 360000}, {"qtd": 10000, "custo": 720000},
+    {"qtd": 20000, "custo": 1440000},
 ]
 
 with col1:
