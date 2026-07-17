@@ -241,12 +241,12 @@ CUSTO_MUNDO_2 = 10000000
 st.markdown("### Mundo 2")
 if not st.session_state.mundo_2_desbloqueado:
     desativar_compra_mundo = st.session_state.pontos < CUSTO_MUNDO_2
-    if st.button(f"🚀 Comprar Mundo 2 (Custo: {CUSTO_MUNDO_2:,} Pts)", disabled=desativar_compra_mundo, use_container_width=True):
+    if st.button(f"Comprar Mundo 2 (Custo: {CUSTO_MUNDO_2:,} Pts)", disabled=desativar_compra_mundo, use_container_width=True):
         st.session_state.pontos -= CUSTO_MUNDO_2
         st.session_state.mundo_2_desbloqueado = True
         st.session_state.mundo_atual = 2
         salvar_jogo()
-        st.success("🌌 Segundo Mundo Desbloqueado com sucesso! Viajando...")
+        st.success("Indo para o mundo 2...")
         time.sleep(1)
         st.rerun()
 else:
@@ -303,7 +303,7 @@ else:
     except Exception:
         st.caption("🎵 Arquivo 'musica67.mp3' não encontrado.")
 
-    if st.button("            Click Here          ", use_container_width=True):
+    if st.button("            Click Here          "):
         st.session_state.pontos += st.session_state.poder_clique
         salvar_jogo()
 
