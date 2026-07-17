@@ -267,7 +267,7 @@ if tempo_passado >= 1.0:
 
 loja_em_cooldown = (time.time() - st.session_state.ultima_compra) < 0.5
 
-# --- BARRA LATERAL: PAINEL DO ADMINISTRADOR ORIGINAL ---
+# --- BARRA LATERAL: LOGOUT, PAINEL ADMIN E TOP GLOBAL ---
 with st.sidebar:
     st.write(f"Conectado como: **{st.session_state.nome_usuario}**")
     if st.button("Sair da Conta (Logout)", type="secondary"):
@@ -321,6 +321,16 @@ with st.sidebar:
         elif senha_input != "":
             st.error("Senha incorreta!")
 
+    # 🏆 SEÇÃO DO PLACAR GLOBAL MOVIDA PARA A SIDEBAR EXATAMENTE COMO ANTES
+    st.markdown("---")
+    st.subheader("🏆 Top 5 Global:")
+    dados_placar = carregar_leaderboard()
+
+    if dados_placar:
+        st.table(dados_placar)
+    else:
+        st.info("O placar está vazio.")
+
 # --- CONTROLE DE VIAGEM ENTRE MUNDOS ---
 st.title("Clicker Game")
 
@@ -356,7 +366,7 @@ if st.session_state.mundo_atual == 2:
     st.subheader("Segundo mundo")
     st.info("2X de multiplicador de mundo")
     
-    st.write("Trilha sonora espacial: on/off ")
+    st.write("Trilha sonora: on/off")
     try:
         st.audio("musica67.mp3") 
     except Exception:
@@ -410,7 +420,7 @@ if st.session_state.mundo_atual == 2:
             st.caption(f"{pet['nome']} ({pet['chance']}) | +{pet['bonus']:,} por clique")
 
     with col_m2_egg2:
-        st.write("### Ovo Lendádio:")
+        st.write("### Ovo Lendário:")
         st.write(f"{NOME_PET_M2_R1}: 50% (+{BONUS_PET_M2_R1:,} Pts)")
         st.write(f"{NOME_PET_M2_R2}: 35% (+{BONUS_PET_M2_R2:,} Pts)")
         st.write(f"{NOME_PET_M2_R3}: 15% (+{BONUS_PET_M2_R3:,} Pts)")
@@ -445,7 +455,7 @@ if st.session_state.mundo_atual == 2:
 else:
     st.subheader("Primeiro Mundo")
     
-    st.write("Trilha sonora: on/off ")
+    st.write("Trilha sonora: on/off")
     try:
         st.audio("musica67.mp3")
     except Exception:
@@ -604,20 +614,8 @@ with col2:
 # --- ATUALIZAÇÕES AUTOMÁTICAS NO LEADERBOARD ---
 atualizar_no_leaderboard(st.session_state.nome_usuario, st.session_state.pontos)
 
-# --- TABELA DE CLASSIFICAÇÃO GLOBAL ---
-st.markdown("---")
-st.subheader("Top 5 global:")
-dados_placar = carregar_leaderboard()
-
-if dados_placar:
-    st.table(dados_placar)
-else:
-    st.info("O placar está vazio.")
-
 # --- LOG DE ATUALIZAÇÕES ---
 st.markdown("---")
-st.subheader("Atualizações:")
-st.subheader("Atualizações:")
 st.subheader("Atualizações:")
 st.write("(1.0.0)(Beta) - Lançamento!!!")
 st.write("(1.0.1) - Correção de bugs")
