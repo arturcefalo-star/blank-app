@@ -8,7 +8,6 @@ from streamlit_autorefresh import st_autorefresh
 # =====================================================================
 # ⚙️ EDITE AQUI OS NOMES E BÔNUS DOS PETS DO MUNDO 2 (LOGOS 7, 8 E 9)
 # =====================================================================
-# --- OVO CÓSMICO 1 (Mais barato) ---
 NOME_PET_7 = "Barbbie"  # Logo 7
 BONUS_PET_7 = 1000000
 
@@ -20,7 +19,6 @@ BONUS_PET_9 = 5000000
 
 CUSTO_OVO_MUNDO_2_BARATO = 50000000   # Custo do primeiro ovo do Mundo 2
 
-# --- OVO CÓSMICO 2 (Mais caro/raro) ---
 NOME_PET_M2_R1 = "Pocoyo"
 BONUS_PET_M2_R1 = 10000000
 
@@ -33,57 +31,50 @@ BONUS_PET_M2_R3 = 50000000
 CUSTO_OVO_MUNDO_2_CARO = 500000000   # Custo do segundo ovo do Mundo 2
 # =====================================================================
 
-# --- CONFIGURAÇÕES DE ADMIN ---
 SENHA_ADMIN = "XxIIlIIxX"
-
-# Arquivos de salvamento
-SAVE_FILE = "savegame.json"
+ACCOUNTS_FILE = "usuarios.json"
 LEADERBOARD_FILE = "leaderboard.json"
 
-# --- FUNÇÕES DE SALVAMENTO E LEADERBOARD ---
+# --- FUNÇÕES DE GERENCIAMENTO DE USUÁRIOS E SALVAMENTO ---
 
-def salvar_jogo():
-    dados = {
-        "pontos": st.session_state.pontos,
-        "poder_base": st.session_state.poder_base,
-        "pontos_por_segundo": st.session_state.pontos_por_segundo,
-        "pet_slot_1": st.session_state.pet_slot_1,
-        "pet_slot_2": st.session_state.pet_slot_2,
-        "pet_slot_m2_1": st.session_state.pet_slot_m2_1,
-        "pet_slot_m2_2": st.session_state.pet_slot_m2_2,
-        "ultimo_tick": st.session_state.ultimo_tick,
-        "ja_enviou": st.session_state.ja_enviou,
-        "nome_usuario": st.session_state.nome_usuario,
-        "mundo_2_desbloqueado": st.session_state.mundo_2_desbloqueado,
-        "mundo_atual": st.session_state.mundo_atual
-    }
-    with open(SAVE_FILE, "w", encoding="utf-8") as f:
-        json.dump(dados, f, ensure_ascii=False, indent=4)
-
-def carregar_jogo():
-    if os.path.exists(SAVE_FILE):
+def carregar_todos_usuarios():
+    if os.path.exists(ACCOUNTS_FILE):
         try:
-            with open(SAVE_FILE, "r", encoding="utf-8") as f:
+            with open(ACCOUNTS_FILE, "r", encoding="utf-8") as f:
                 return json.load(f)
         except Exception:
-            return None
-    return None
+            return {}
+    return {}
+
+def salvar_todos_usuarios(usuarios):
+    with open(ACCOUNTS_FILE, "w", encoding="utf-8") as f:
+        json.dump(usuarios, f, ensure_ascii=False, indent=4)
+
+def salvar_progresso_atual():
+    if st.session_state.logado and st.session_state.nome_usuario:
+        usuarios = carregar_todos_usuarios()
+        username_key = st.session_state.nome_usuario.lower()
+        
+        usuarios[username_key]["dados"] = {
+            "pontos": st.session_state.pontos,
+            "poder_base": st.session_state.poder_base,
+            "pontos_por_segundo": st.session_state.pontos_por_segundo,
+            "pet_slot_1": st.session_state.pet_slot_1,
+            "pet_slot_2": st.session_state.pet_slot_2,
+            "pet_slot_m2_1": st.session_state.pet_slot_m2_1,
+            "pet_slot_m2_2": st.session_state.pet_slot_m2_2,
+            "ultimo_tick": st.session_state.ultimo_tick,
+            "mundo_2_desbloqueado": st.session_state.mundo_2_desbloqueado,
+            "mundo_atual": st.session_state.mundo_atual
+        }
+        salvar_todos_usuarios(usuarios)
 
 def carregar_leaderboard():
     if os.path.exists(LEADERBOARD_FILE):
         try:
             with open(LEADERBOARD_FILE, "r", encoding="utf-8") as f:
                 dados = json.load(f)
-            
-            usuarios_unicos = {}
-            for jogador in dados:
-                nome = jogador["Jogador"]
-                pontos = jogador.get("Pontos", jogador.get("Points", 0))
-                
-                if nome.lower() not in usuarios_unicos or pontos > usuarios_unicos[nome.lower()]["Pontos"]:
-                    usuarios_unicos[nome.lower()] = {"Jogador": nome, "Pontos": pontos}
-            
-            return sorted(usuarios_unicos.values(), key=lambda x: x["Pontos"], reverse=True)[:5]
+            return sorted(dados, key=lambda x: x["Pontos"], reverse=True)[:5]
         except Exception:
             return []
     return []
@@ -92,86 +83,127 @@ def salvar_leaderboard_completo(lista):
     with open(LEADERBOARD_FILE, "w", encoding="utf-8") as f:
         json.dump(lista, f, ensure_ascii=False, indent=4)
 
-def remover_jogador_leaderboard(nome_antigo):
-    if nome_antigo and os.path.exists(LEADERBOARD_FILE):
-        try:
-            with open(LEADERBOARD_FILE, "r", encoding="utf-8") as f:
-                dados = json.load(f)
-            novo_leaderboard = [j for j in dados if j["Jogador"].lower() != nome_antigo.lower()]
-            salvar_leaderboard_completo(novo_leaderboard)
-        except Exception:
-            pass
-
-def salvar_no_leaderboard(nome, pontos):
+def atualizar_no_leaderboard(nome, pontos):
     leaderboard = []
     if os.path.exists(LEADERBOARD_FILE):
         try:
             with open(LEADERBOARD_FILE, "r", encoding="utf-8") as f:
                 leaderboard = json.load(f)
         except Exception:
-            leaderboard = []
+            pass
     
-    jogador_encontrado = False
-    for jogador in leaderboard:
-        if jogador["Jogador"].lower() == nome.lower():
-            jogador_encontrado = True
-            if pontos > jogador["Pontos"]:
-                jogador["Pontos"] = pontos
-                jogador["Jogador"] = nome 
+    encontrado = False
+    for j in leaderboard:
+        if j["Jogador"].lower() == nome.lower():
+            encontrado = True
+            if pontos > j["Pontos"]:
+                j["Pontos"] = pontos
+                j["Jogador"] = nome
             break
-            
-    if not jogador_encontrado:
+    if not encontrado:
         leaderboard.append({"Jogador": nome, "Pontos": pontos})
-        
+    
     leaderboard = sorted(leaderboard, key=lambda x: x["Pontos"], reverse=True)[:5]
     salvar_leaderboard_completo(leaderboard)
-    return leaderboard
 
-# --- 1. INICIALIZAÇÃO CORRETA E SEGURA DO ESTADO ---
-dados_salvos = carregar_jogo()
-if dados_salvos is None:
-    dados_salvos = {}
+def remover_jogador_leaderboard(nome):
+    if os.path.exists(LEADERBOARD_FILE):
+        try:
+            with open(LEADERBOARD_FILE, "r", encoding="utf-8") as f:
+                dados = json.load(f)
+            novo = [j for j in dados if j["Jogador"].lower() != nome.lower()]
+            salvar_leaderboard_completo(novo)
+        except Exception:
+            pass
 
-if "pontos" not in st.session_state:
-    st.session_state.pontos = dados_salvos.get("pontos", 0)
-if "poder_base" not in st.session_state:
-    st.session_state.poder_base = dados_salvos.get("poder_base", 1)
+# --- INICIALIZAÇÃO DE SESSÃO DO LOGIN ---
+if "logado" not in st.session_state:
+    st.session_state.logado = False
+if "nome_usuario" not in st.session_state:
+    st.session_state.nome_usuario = ""
+
+# =====================================================================
+# 🔐 TELA DE LOGIN / REGISTRO
+# =====================================================================
+if not st.session_state.logado:
+    st.title("🎮 Clicker Game - Login")
+    
+    aba_login, aba_registro = st.tabs(["Entrar na Conta", "Criar Nova Conta"])
+    
+    with aba_login:
+        st.subheader("Faça seu Login")
+        log_user = st.text_input("Usuário:", key="log_user", max_chars=15).strip()
+        log_pass = st.text_input("Senha:", type="password", key="log_pass")
+        
+        if st.button("Entrar", use_container_width=True):
+            usuarios = carregar_todos_usuarios()
+            user_key = log_user.lower()
+            
+            if user_key in usuarios and usuarios[user_key]["senha"] == log_pass:
+                # Carrega os dados salvos da conta
+                dados = usuarios[user_key]["dados"]
+                st.session_state.pontos = dados.get("pontos", 0)
+                st.session_state.poder_base = dados.get("poder_base", 1)
+                st.session_state.pontos_por_segundo = dados.get("pontos_por_segundo", 0)
+                st.session_state.pet_slot_1 = dados.get("pet_slot_1", None)
+                st.session_state.pet_slot_2 = dados.get("pet_slot_2", None)
+                st.session_state.pet_slot_m2_1 = dados.get("pet_slot_m2_1", None)
+                st.session_state.pet_slot_m2_2 = dados.get("pet_slot_m2_2", None)
+                st.session_state.ultimo_tick = time.time()  # Evita carregar tempo offline abusivo
+                st.session_state.mundo_2_desbloqueado = dados.get("mundo_2_desbloqueado", False)
+                st.session_state.mundo_atual = dados.get("mundo_atual", 1)
+                
+                st.session_state.nome_usuario = usuarios[user_key]["nome_exibicao"]
+                st.session_state.logado = True
+                st.success(f"Bem-vindo de volta, {st.session_state.nome_usuario}!")
+                time.sleep(0.5)
+                st.rerun()
+            else:
+                st.error("Usuário ou senha incorretos.")
+                
+    with aba_registro:
+        st.subheader("Crie sua Conta")
+        reg_user = st.text_input("Escolha um Usuário:", key="reg_user", max_chars=15).strip()
+        reg_pass = st.text_input("Escolha uma Senha:", type="password", key="reg_pass")
+        reg_pass_conf = st.text_input("Confirme a Senha:", type="password", key="reg_pass_conf")
+        
+        if st.button("Registrar Conta", use_container_width=True):
+            usuarios = carregar_todos_usuarios()
+            user_key = reg_user.lower()
+            
+            if not reg_user or not reg_pass:
+                st.warning("Preencha todos os campos!")
+            elif user_key in usuarios:
+                st.error("Este nome de usuário já existe!")
+            elif reg_pass != reg_pass_conf:
+                st.error("As senhas não coincidem.")
+            else:
+                # Registra nova conta com dados iniciais vazios
+                usuarios[user_key] = {
+                    "senha": reg_pass,
+                    "nome_exibicao": reg_user,
+                    "dados": {
+                        "pontos": 0, "poder_base": 1, "pontos_por_segundo": 0,
+                        "pet_slot_1": None, "pet_slot_2": None,
+                        "pet_slot_m2_1": None, "pet_slot_m2_2": None,
+                        "ultimo_tick": time.time(), "mundo_2_desbloqueado": False, "mundo_atual": 1
+                    }
+                }
+                salvar_todos_usuarios(usuarios)
+                st.success("Conta criada com sucesso! Faça login na aba ao lado.")
+                
+    st.stop() # Interrompe a execução para quem não está logado
+
+# =====================================================================
+# 🎮 INTERFACE E LOGICA PRINCIPAL DO JOGO (APÓS LOGAR)
+# =====================================================================
+
 if "poder_clique" not in st.session_state:
     st.session_state.poder_clique = 1  
-if "pontos_por_segundo" not in st.session_state:
-    st.session_state.pontos_por_segundo = dados_salvos.get("pontos_por_segundo", 0)
-if "ultimo_tick" not in st.session_state:
-    st.session_state.ultimo_tick = dados_salvos.get("ultimo_tick", time.time())
-if "ja_enviou" not in st.session_state:
-    st.session_state.ja_enviou = dados_salvos.get("ja_enviou", False)
-if "nome_usuario" not in st.session_state:
-    st.session_state.nome_usuario = dados_salvos.get("nome_usuario", "")
-
-# Variáveis para o Novo Mundo
-if "mundo_2_desbloqueado" not in st.session_state:
-    st.session_state.mundo_2_desbloqueado = dados_salvos.get("mundo_2_desbloqueado", False)
-if "mundo_atual" not in st.session_state:
-    st.session_state.mundo_atual = dados_salvos.get("mundo_atual", 1)
-
 if "ultima_compra" not in st.session_state:
     st.session_state.ultima_compra = 0.0
 if "confirmando_reset" not in st.session_state:
     st.session_state.confirmando_reset = False
-
-# Slots de Pets Mundo 1
-if "pet_slot_1" not in st.session_state:
-    st.session_state.pet_slot_1 = dados_salvos.get("pet_slot_1", None)
-if "pet_slot_2" not in st.session_state:
-    st.session_state.pet_slot_2 = dados_salvos.get("pet_slot_2", None)
-
-# Slots de Pets Mundo 2
-if "pet_slot_m2_1" not in st.session_state:
-    st.session_state.pet_slot_m2_1 = dados_salvos.get("pet_slot_m2_1", None)
-if "pet_slot_m2_2" not in st.session_state:
-    st.session_state.pet_slot_m2_2 = dados_salvos.get("pet_slot_m2_2", None)
-
-if "pontos_leaderboard_cache" not in st.session_state:
-    st.session_state.pontos_leaderboard_cache = -1
 
 def atualizar_poder_clique():
     bonus_total = 0
@@ -187,32 +219,7 @@ def atualizar_poder_clique():
 
 atualizar_poder_clique()
 
-# --- 2. SINCRONIZAÇÃO INTELIGENTE DO ADMIN ---
-if st.session_state.nome_usuario != "" and os.path.exists(LEADERBOARD_FILE):
-    try:
-        with open(LEADERBOARD_FILE, "r", encoding="utf-8") as f:
-            tabela_global = json.load(f)
-        for j in tabela_global:
-            if j["Jogador"].lower() == st.session_state.nome_usuario.lower():
-                pontos_lb = j["Pontos"]
-                
-                if st.session_state.pontos_leaderboard_cache == -1:
-                    st.session_state.pontos_leaderboard_cache = pontos_lb
-                
-                elif pontos_lb != st.session_state.pontos_leaderboard_cache:
-                    diferenca = pontos_lb - st.session_state.pontos_leaderboard_cache
-                    st.session_state.pontos += diferenca
-                    
-                    if st.session_state.pontos < 0:
-                        st.session_state.pontos = 0
-                        
-                    st.session_state.pontos_leaderboard_cache = pontos_lb
-                    salvar_jogo()
-                break
-    except Exception:
-        pass
-
-# --- 3. SISTEMA DE REFRESH PASSIVO (AUTO-CLICKER) ---
+# --- REFRESH PASSIVO (AUTO-CLICKER) ---
 if st.session_state.pontos_por_segundo > 0:
     st_autorefresh(interval=900, key="autoclicker")
 
@@ -223,57 +230,41 @@ if tempo_passado >= 1.0:
     ciclos = int(tempo_passado)
     st.session_state.pontos += st.session_state.pontos_por_segundo * ciclos
     st.session_state.ultimo_tick = agora - (tempo_passado - ciclos)
-    salvar_jogo()
+    salvar_progresso_atual()
 
 loja_em_cooldown = (time.time() - st.session_state.ultima_compra) < 0.5
 
-# --- 4. BARRA LATERAL: PAINEL DO ADMINISTRADOR ---
+# --- BARRA LATERAL: PAINEL DO ADMINISTRADOR E LOGOUT ---
 with st.sidebar:
+    st.write(f"Conectado como: **{st.session_state.nome_usuario}**")
+    if st.button("Sair da Conta (Logout)", type="secondary"):
+        salvar_progresso_atual()
+        st.session_state.logado = False
+        st.session_state.nome_usuario = ""
+        st.rerun()
+        
+    st.markdown("---")
     st.header("⚙️ Painel de Admin")
     if st.checkbox("Ativar Modo Administrador"):
         senha_input = st.text_input("Digite a senha de Admin:", type="password")
         
         if len(senha_input) > 0 and senha_input == SENHA_ADMIN:
-            st.success("Success!")
+            st.success("Acesso Permitido!")
+            st.subheader("Gerenciar Todos os Usuários")
             
-            st.subheader("Modificador de Pontos")
-            qtd_pontos = st.number_input("Quantidade de pontos para Add/Rem:", min_value=1, value=1000, step=100)
-            
-            st.subheader("Gerenciar Placar Global")
-            
-            placar_completo = []
-            if os.path.exists(LEADERBOARD_FILE):
-                try:
-                    with open(LEADERBOARD_FILE, "r", encoding="utf-8") as f:
-                        placar_completo = json.load(f)
-                except Exception:
-                    pass
-
-            if placar_completo:
-                for i, jogador in enumerate(placar_completo):
-                    col_adm1, col_adm2, col_adm3, col_adm4 = st.columns([2, 1, 1, 1])
-                    col_adm1.write(f"**{jogador['Jogador']}**: {jogador['Pontos']} pts")
-                    
-                    if col_adm2.button("Ban", key=f"del_{i}", help="Deletar este jogador"):
-                        placar_completo.pop(i)
-                        salvar_leaderboard_completo(placar_completo)
-                        st.rerun()
-                    
-                    if col_adm3.button("Add", key=f"add_{i}", help=f"Adicionar +{qtd_pontos} pontos"):
-                        jogador['Pontos'] += qtd_pontos
-                        salvar_leaderboard_completo(placar_completo)
-                        st.rerun()
-
-                    if col_adm4.button("Rem", key=f"rem_{i}", help=f"Remover -{qtd_pontos} pontos"):
-                        jogador['Pontos'] = max(0, jogador['Pontos'] - qtd_pontos)
-                        salvar_leaderboard_completo(placar_completo)
-                        st.rerun()
-            else:
-                st.info("Nenhum jogador registrado no placar ainda.")
+            usuarios_sistema = carregar_todos_usuarios()
+            for k, v in list(usuarios_sistema.items()):
+                col_adm1, col_adm2 = st.columns([3, 1])
+                col_adm1.write(f"👤 {v['nome_exibicao']} ({v['dados']['pontos']:,} pts)")
+                if col_adm2.button("Zerar", key=f"zerar_{k}"):
+                    v['dados']['pontos'] = 0
+                    salvar_todos_usuarios(usuarios_sistema)
+                    remover_jogador_leaderboard(v['nome_exibicao'])
+                    st.rerun()
         elif senha_input != "":
             st.error("Senha incorreta!")
 
-# --- 5. CONTROLE DE VIAGEM ENTRE MUNDOS ---
+# --- CONTROLE DE VIAGEM ENTRE MUNDOS ---
 st.title("Clicker Game")
 
 CUSTO_MUNDO_2 = 10000000
@@ -285,7 +276,7 @@ if not st.session_state.mundo_2_desbloqueado:
         st.session_state.pontos -= CUSTO_MUNDO_2
         st.session_state.mundo_2_desbloqueado = True
         st.session_state.mundo_atual = 2
-        salvar_jogo()
+        salvar_progresso_atual()
         st.success("Indo para o mundo 2...")
         time.sleep(1)
         st.rerun()
@@ -293,34 +284,24 @@ else:
     if st.session_state.mundo_atual == 1:
         if st.button("Teleportar para mundo 2", type="primary", use_container_width=True):
             st.session_state.mundo_atual = 2
-            salvar_jogo()
+            salvar_progresso_atual()
             st.rerun()
     else:
         if st.button("Voltar para mundo 1", type="secondary", use_container_width=True):
             st.session_state.mundo_atual = 1
-            salvar_jogo()
+            salvar_progresso_atual()
             st.rerun()
 
 st.markdown("---")
 
-# --- CONTEÚDO DINÂMICO DEPENDENDO DO MUNDO ATUAL ---
-
+# --- CONTEÚDO DINÂMICO DOS MUNDOS ---
 if st.session_state.mundo_atual == 2:
-    # -------------------------------------------------------------
-    # 🌌 INTERFACE DO SEGUNDO MUNDO
-    # -------------------------------------------------------------
     st.subheader("Segundo mundo")
     st.info("2X de multiplicador de mundo")
     
-    st.write("Trilha sonora espacial: on/off ")
-    try:
-        st.audio("musica67.mp3") 
-    except Exception:
-        pass
-
     if st.button("            Click Here          "):
         st.session_state.pontos += (st.session_state.poder_clique * 2)
-        salvar_jogo()
+        salvar_progresso_atual()
 
     st.metric(label="Pontos Atuais", value=st.session_state.pontos)
     
@@ -329,8 +310,6 @@ if st.session_state.mundo_atual == 2:
     col_status2.write(f"**Pontos por segundo:** {st.session_state.pontos_por_segundo}")
 
     st.markdown("---")
-
-    # --- 6. SISTEMA DE OVOS DO MUNDO 2 (IGUAL AO MUNDO 1) ---
     st.subheader("Comprar ovos:")
     col_m2_egg1, col_m2_egg2 = st.columns(2)
 
@@ -354,17 +333,13 @@ if st.session_state.mundo_atual == 2:
                 )[0]
                 st.session_state.pet_slot_m2_1 = sorteado
                 atualizar_poder_clique()
-                salvar_jogo()
+                salvar_progresso_atual()
                 time.sleep(0.5) 
                 st.rerun()
 
         if st.session_state.pet_slot_m2_1:
             pet = st.session_state.pet_slot_m2_1
             st.write("**Pet Equipado:**")
-            try:
-                st.image(pet["arquivo"], width=167)
-            except Exception:
-                st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada.")
             st.caption(f"{pet['nome']} ({pet['chance']}) | +{pet['bonus']:,} por clique")
 
     with col_m2_egg2:
@@ -387,34 +362,21 @@ if st.session_state.mundo_atual == 2:
                 )[0]
                 st.session_state.pet_slot_m2_2 = sorteado
                 atualizar_poder_clique()
-                salvar_jogo()
+                salvar_progresso_atual()
                 time.sleep(0.5) 
                 st.rerun()
 
         if st.session_state.pet_slot_m2_2:
             pet = st.session_state.pet_slot_m2_2
             st.write("**Pet Equipado:**")
-            try:
-                st.image(pet["arquivo"], width=120)
-            except Exception:
-                st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada.")
             st.caption(f"{pet['nome']} ({pet['chance']}) | +{pet['bonus']:,} por clique")
 
 else:
-    # -------------------------------------------------------------
-    # 🌍 INTERFACE DO PRIMEIRO MUNDO
-    # -------------------------------------------------------------
     st.subheader("Primeiro Mundo")
     
-    st.write("Trilha sonora: on/off ")
-    try:
-        st.audio("musica67.mp3")
-    except Exception:
-        st.caption("🎵 Arquivo 'musica67.mp3' não encontrado.")
-
     if st.button("            Click Here          "):
         st.session_state.pontos += st.session_state.poder_clique
-        salvar_jogo()
+        salvar_progresso_atual()
 
     st.metric(label="Pontos Atuais", value=st.session_state.pontos)
     col_status1, col_status2 = st.columns(2)
@@ -422,8 +384,6 @@ else:
     col_status2.write(f"**Pontos por segundo:** {st.session_state.pontos_por_segundo}")
 
     st.markdown("---")
-
-    # --- 6. SISTEMA DE OVOS DO MUNDO 1 ---
     st.subheader("Comprar Ovos:")
     col3, col4 = st.columns(2)
 
@@ -448,17 +408,13 @@ else:
                 )[0]
                 st.session_state.pet_slot_1 = sorteado_ovo1
                 atualizar_poder_clique()
-                salvar_jogo()
+                salvar_progresso_atual()
                 time.sleep(0.5) 
                 st.rerun()
 
         if st.session_state.pet_slot_1:
             pet = st.session_state.pet_slot_1
             st.write("**Pet Equipado:**")
-            try:
-                st.image(pet["arquivo"], width=188)
-            except Exception:
-                st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada.")
             st.caption(f"{pet['nome']} ({pet['chance']}) | +{pet['bonus']} por clique")
 
     with col4:
@@ -482,26 +438,21 @@ else:
                 )[0]
                 st.session_state.pet_slot_2 = sorteado_ovo2
                 atualizar_poder_clique()
-                salvar_jogo()
+                salvar_progresso_atual()
                 time.sleep(0.5) 
                 st.rerun()
 
         if st.session_state.pet_slot_2:
             pet = st.session_state.pet_slot_2
             st.write("**Pet Equipado:**")
-            try:
-                st.image(pet["arquivo"], width=100)
-            except Exception:
-                st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada.")
             st.caption(f"{pet['nome']} ({pet['chance']}) | +{pet['bonus']} por clique")
 
 st.markdown("---")
 
-# --- 7. LOJA DE MELHORIAS (DINÂMICA E SIMÉTRICA COM 10 ITENS EM AMBOS) ---
+# --- LOJA DE MELHORIAS ---
 st.subheader("Loja de Melhorias")
 
 if st.session_state.mundo_atual == 2:
-    
     melhorias_clique = [
         {"qtd": 50000, "custo": 15000000}, {"qtd": 100000, "custo": 50000000},
         {"qtd": 250000, "custo": 150000000}, {"qtd": 500000, "custo": 500000000},
@@ -545,7 +496,7 @@ with col1:
                 st.session_state.pontos -= item['custo']
                 st.session_state.poder_base += item['qtd']
                 atualizar_poder_clique()  
-                salvar_jogo()
+                salvar_progresso_atual()
                 time.sleep(0.5)
                 st.rerun()
 
@@ -561,119 +512,59 @@ with col2:
                 st.session_state.ultima_compra = time.time()
                 st.session_state.pontos -= item['custo']
                 st.session_state.pontos_por_segundo += item['qtd']
-                salvar_jogo()
+                salvar_progresso_atual()
                 time.sleep(0.5)
                 st.rerun()
 
-# --- COMPONENTES GLOBAIS DE FINAL DE PÁGINA ---
+# --- ATUALIZAÇÕES AUTOMÁTICAS NO LEADERBOARD ---
+atualizar_no_leaderboard(st.session_state.nome_usuario, st.session_state.pontos)
 
-# --- 8. LOG DE ATUALIZAÇÕES ---
+# --- TABELA DE CLASSIFICAÇÃO GLOBAL ---
 st.markdown("---")
-st.subheader("Atualizações:")
-st.subheader("Atualizações:")
-st.subheader("Atualizações:")
-st.write("(1.0.0)(Beta) - Lançamento!!!")
-st.write("(1.0.1) - Correção de bugs")
-st.write("(1.1.2) - Adição dos Ovos, correção de bugs e preços balanceados")
-st.write("(1.2.3) - Adição de novos pets e ovos e o log de atualizações")
-st.write("(1.3.4) - Interface reformulada e correção de bugs")
-st.write("(1.4.5) - Sistema de salvamento de jogo, adição de novos autoclickers, adição de um botão de reset e correção de bugs")
-st.write("(1.5.6) - Adição do top global (Coloque seu nome na barrinha e clique em enviar e clique novamente para atualizar)")
-st.write("(1.6.7) - Adição do painel de adimin com senha e correção de bugs")
-st.write("(1.7.8) - Adição do segundo mundo!!! novas melhorias, nova interface de melhorias, correção de bugs e muito mais!!!")
-st.write("(1.8.9) - Adição de 2 novos ovos(segundo mundo), 6 novos pets e correção de bugs")
-
-# --- 9. TABELA DE CLASSIFICAÇÃO ---
-st.markdown("---")
-st.subheader("Top 5 global:")
-
+st.subheader("🏆 Top 5 Global:")
 dados_placar = carregar_leaderboard()
-
-nome_input = st.text_input(
-    "Digite seu nome para salvar seu recorde:", 
-    value=st.session_state.get("nome_usuario", ""), 
-    max_chars=15, 
-    key="nome_leaderboard_widget"
-)
-
-botao_desativado = nome_input.strip() == ""
-
-if st.button("Enviar Pontuação para o Placar", use_container_width=True, disabled=botao_desativado):
-    nome_novo = nome_input.strip()
-    nome_antigo = st.session_state.nome_usuario
-    
-    pontos_do_registro_existente = None
-    if os.path.exists(LEADERBOARD_FILE):
-        try:
-            with open(LEADERBOARD_FILE, "r", encoding="utf-8") as f:
-                todos_jogadores = json.load(f)
-            for j in todos_jogadores:
-                if j["Jogador"].lower() == nome_novo.lower():
-                    pontos_do_registro_existente = j.get("Pontos", j.get("Points", 0))
-                    break
-        except Exception:
-            pass
-
-    if pontos_do_registro_existente is not None and nome_novo.lower() != nome_antigo.lower():
-        if st.session_state.pontos <= pontos_do_registro_existente:
-            st.error(f"❌ Esse nome pertence a outro jogador que possui {pontos_do_registro_existente} pontos! Supere o recorde dele para poder usar este nome.")
-            nome_novo = None 
-
-    if nome_novo is not None:
-        if nome_antigo != "" and nome_novo.lower() != nome_antigo.lower():
-            remover_jogador_leaderboard(nome_antigo)
-        
-        st.session_state.nome_usuario = nome_novo
-        st.session_state.ja_enviou = True  
-        st.session_state.pontos_leaderboard_cache = st.session_state.pontos 
-        
-        dados_placar = salvar_no_leaderboard(nome_novo, st.session_state.pontos)
-        salvar_jogo()  
-        st.success(f"Placar updated! Seu nome registrado é: {nome_novo}")
-        time.sleep(0.5)
-        st.rerun()
 
 if dados_placar:
     st.table(dados_placar)
 else:
-    st.info("O placar está vazio. Seja o primeiro a registrar um recorde!")
+    st.info("O placar está vazio.")
 
-# --- 10. SISTEMA DE RESET DE JOGO ---
+# --- LOG DE ATUALIZAÇÕES ---
+st.markdown("---")
+st.subheader("Log de Atualizações:")
+st.write("(1.9.0) - Adicionado Sistema de Login e Registro seguro por senha!")
+st.write("(1.8.9) - Adição de 2 novos ovos (segundo mundo), 6 novos pets e correções.")
+
+# --- SISTEMA DE RESET DE JOGO ---
 st.markdown("---")
 if not st.session_state.confirmando_reset:
-    if st.button("Resetar Jogo", use_container_width=True):
+    if st.button("Resetar Minha Conta", use_container_width=True):
         st.session_state.confirmando_reset = True
         st.rerun()
 else:
-    st.warning("⚠️ **Você tem certeza absoluta?** Isso apagará permanentemente todos os seus pontos, melhorias, mundos e pets salvos!")
+    st.warning("⚠️ **Você tem certeza?** Isso apagará seu progresso atual e te removerá do Placar!")
     col_sim, col_nao = st.columns(2)
     
     with col_sim:
         if st.button("SIM, deletar tudo", type="primary", use_container_width=True):
-            if st.session_state.nome_usuario != "":
-                remover_jogador_leaderboard(st.session_state.nome_usuario)
+            remover_jogador_leaderboard(st.session_state.nome_usuario)
             
-            if os.path.exists(SAVE_FILE):
-                os.remove(SAVE_FILE)
-            
-            st.session_state.pontos = 0
-            st.session_state.poder_base = 1
-            st.session_state.pontos_por_segundo = 0
-            st.session_state.pet_slot_1 = None
-            st.session_state.pet_slot_2 = None
-            st.session_state.pet_slot_m2_1 = None
-            st.session_state.pet_slot_m2_2 = None
-            st.session_state.ultimo_tick = time.time()
-            st.session_state.ja_enviou = False  
+            # Limpa o progresso no arquivo global de usuários
+            usuarios = carregar_todos_usuarios()
+            user_key = st.session_state.nome_usuario.lower()
+            if user_key in usuarios:
+                usuarios[user_key]["dados"] = {
+                    "pontos": 0, "poder_base": 1, "pontos_por_segundo": 0,
+                    "pet_slot_1": None, "pet_slot_2": None,
+                    "pet_slot_m2_1": None, "pet_slot_m2_2": None,
+                    "ultimo_tick": time.time(), "mundo_2_desbloqueado": False, "mundo_atual": 1
+                }
+                salvar_todos_usuarios(usuarios)
+                
+            st.session_state.logado = False
             st.session_state.nome_usuario = ""
-            st.session_state.mundo_2_desbloqueado = False
-            st.session_state.mundo_atual = 1
-            st.session_state.pontos_leaderboard_cache = -1
-            st.session_state.confirmando_reset = False
-            
-            atualizar_poder_clique()
-            st.success("Jogo reiniciado com sucesso!")
-            time.sleep(0.5)
+            st.success("Jogo reiniciado com sucesso! Reconecte.")
+            time.sleep(1)
             st.rerun()
             
     with col_nao:
