@@ -125,6 +125,10 @@ if "pet_slot_1" not in st.session_state:
 if "pet_slot_2" not in st.session_state:
     st.session_state.pet_slot_2 = dados_salvos.get("pet_slot_2", None)
 
+# Memória para verificar se o Admin alterou os pontos
+if "pontos_leaderboard_cache" not in st.session_state:
+    st.session_state.pontos_leaderboard_cache = -1
+
 def atualizar_poder_clique():
     bonus_total = 0
     if st.session_state.pet_slot_1:
@@ -135,16 +139,28 @@ def atualizar_poder_clique():
 
 atualizar_poder_clique()
 
-# --- 2. SINCRONIZAÇÃO AUTOMÁTICA DE PONTOS RECEBIDOS PELO ADMIN ---
+# --- 2. SINCRONIZAÇÃO INTELIGENTE DO ADMIN ---
 if st.session_state.nome_usuario != "" and os.path.exists(LEADERBOARD_FILE):
     try:
         with open(LEADERBOARD_FILE, "r", encoding="utf-8") as f:
             tabela_global = json.load(f)
         for j in tabela_global:
             if j["Jogador"].lower() == st.session_state.nome_usuario.lower():
-                # Se o admin mexeu nos pontos e o valor global for diferente do local, o jogo atualiza localmente
-                if j["Pontos"] != st.session_state.pontos:
-                    st.session_state.pontos = j["Pontos"]
+                pontos_lb = j["Pontos"]
+                
+                # Se for a primeira leitura, apenas grava o cache
+                if st.session_state.pontos_leaderboard_cache == -1:
+                    st.session_state.pontos_leaderboard_cache = pontos_lb
+                
+                # Se o valor do Leaderboard mudou por fora (Admin alterou)
+                elif pontos_lb != st.session_state.pontos_leaderboard_cache:
+                    diferenca = pontos_lb - st.session_state.pontos_leaderboard_cache
+                    st.session_state.pontos += diferenca
+                    
+                    if st.session_state.pontos < 0:
+                        st.session_state.pontos = 0
+                        
+                    st.session_state.pontos_leaderboard_cache = pontos_lb
                     salvar_jogo()
                 break
     except Exception:
@@ -175,7 +191,6 @@ with st.sidebar:
             st.success("Success!")
             
             st.subheader("Modificador de Pontos")
-            # Campo dinâmico para o admin escolher a quantia de pontos por clique
             qtd_pontos = st.number_input("Quantidade de pontos para Add/Rem:", min_value=1, value=1000, step=100)
             
             st.subheader("Gerenciar Placar Global")
@@ -193,19 +208,16 @@ with st.sidebar:
                     col_adm1, col_adm2, col_adm3, col_adm4 = st.columns([2, 1, 1, 1])
                     col_adm1.write(f"**{jogador['Jogador']}**: {jogador['Pontos']} pts")
                     
-                    # Botão para deletar jogador
                     if col_adm2.button("Ban", key=f"del_{i}", help="Deletar este jogador"):
                         placar_completo.pop(i)
                         salvar_leaderboard_completo(placar_completo)
                         st.rerun()
                     
-                    # Botão para somar pontos (usa a variável qtd_pontos)
                     if col_adm3.button("Add", key=f"add_{i}", help=f"Adicionar +{qtd_pontos} pontos"):
                         jogador['Pontos'] += qtd_pontos
                         salvar_leaderboard_completo(placar_completo)
                         st.rerun()
 
-                    # Botão para remover pontos (usa a variável qtd_pontos)
                     if col_adm4.button("Rem", key=f"rem_{i}", help=f"Remover -{qtd_pontos} pontos"):
                         jogador['Pontos'] = max(0, jogador['Pontos'] - qtd_pontos)
                         salvar_leaderboard_completo(placar_completo)
@@ -412,6 +424,9 @@ if st.button("Enviar Pontuação para o Placar", use_container_width=True, disab
         st.session_state.nome_usuario = nome_novo
         st.session_state.ja_enviou = True  
         
+        # Sincroniza o cache do admin para não reverter na próxima leitura
+        st.session_state.pontos_leaderboard_cache = st.session_state.pontos 
+        
         dados_placar = salvar_no_leaderboard(nome_novo, st.session_state.pontos)
         salvar_jogo()  
         st.success(f"Placar updated! Seu nome registrado é: {nome_novo}")
@@ -423,7 +438,7 @@ if dados_placar:
 else:
     st.info("O placar está vazio. Seja o primeiro a registrar um recorde!")
 
-# --- 10. SISTEMA DE RESET DE JOGO ---
+# --- 10. SISTEMA DE RESET DE JOGO CORRIGIDO ---
 st.markdown("---")
 if not st.session_state.confirmando_reset:
     if st.button("Resetar Jogo", use_container_width=True):
@@ -435,10 +450,12 @@ else:
     
     with col_sim:
         if st.button("SIM, deletar tudo", type="primary", use_container_width=True):
+            if st.session_state.nome_usuario != "":
+                remover_jogador_leaderboard(st.session_state.nome_usuario)
+            
             if os.path.exists(SAVE_FILE):
                 os.remove(SAVE_FILE)
-            if os.path.exists(LEADERBOARD_FILE):
-                os.remove(LEADERBOARD_FILE)
+            
             st.session_state.pontos = 0
             st.session_state.poder_base = 1
             st.session_state.pontos_por_segundo = 0
@@ -447,9 +464,11 @@ else:
             st.session_state.ultimo_tick = time.time()
             st.session_state.ja_enviou = False  
             st.session_state.nome_usuario = ""
+            st.session_state.pontos_leaderboard_cache = -1
             st.session_state.confirmando_reset = False
+            
             atualizar_poder_clique()
-            st.success("Jogo reiniciado com sucesso!")
+            st.success("Jogo reiniciado com sucesso! Seu recorde anterior foi removido, mas os outros jogadores continuam salvos.")
             time.sleep(0.5)
             st.rerun()
             
