@@ -267,7 +267,7 @@ if tempo_passado >= 1.0:
 
 loja_em_cooldown = (time.time() - st.session_state.ultima_compra) < 0.5
 
-# --- BARRA LATERAL: LOGOUT, PAINEL ADMIN E TOP GLOBAL ---
+# --- BARRA LATERAL: LOGOUT E PAINEL ADMIN ---
 with st.sidebar:
     st.write(f"Conectado como: **{st.session_state.nome_usuario}**")
     if st.button("Sair da Conta (Logout)", type="secondary"):
@@ -320,16 +320,6 @@ with st.sidebar:
                 st.info("Nenhum jogador registrado no placar ainda.")
         elif senha_input != "":
             st.error("Senha incorreta!")
-
-    # 🏆 SEÇÃO DO PLACAR GLOBAL MOVIDA PARA A SIDEBAR EXATAMENTE COMO ANTES
-    st.markdown("---")
-    st.subheader("🏆 Top 5 Global:")
-    dados_placar = carregar_leaderboard()
-
-    if dados_placar:
-        st.table(dados_placar)
-    else:
-        st.info("O placar está vazio.")
 
 # --- CONTROLE DE VIAGEM ENTRE MUNDOS ---
 st.title("Clicker Game")
@@ -628,6 +618,16 @@ st.write("(1.6.7) - Adição do painel de adimin com senha e correção de bugs"
 st.write("(1.7.8) - Adição do segundo mundo!!! novas melhorias, nova interface de melhorias, correção de bugs e muito mais!!!")
 st.write("(1.8.9) - Adição de 2 novos ovos(segundo mundo), 6 novos pets e correção de bugs")
 st.write("(1.9.0) - Adição de Sistema de login com proteção de dados por senha!")
+
+# --- 🏆 TABELA DE CLASSIFICAÇÃO GLOBAL (MOVIDA PARA O FINAL) ---
+st.markdown("---")
+st.subheader("🏆 Top 5 Global:")
+dados_placar = carregar_leaderboard()
+
+if dados_placar:
+    st.table(dados_placar)
+else:
+    st.info("O placar está vazio.")
 
 # --- SISTEMA DE RESET DE JOGO ---
 st.markdown("---")
