@@ -279,7 +279,7 @@ if st.session_state.mundo_atual == 2:
         pass
 
     # Botão de Clique do Mundo 2 (Ganha o DOBRO do poder de clique)
-    if st.button(                  "Click Here"              ):
+    if st.button(                     "Click Here"                      ):
         st.session_state.pontos += (st.session_state.poder_clique * 2)
         salvar_jogo()
 
