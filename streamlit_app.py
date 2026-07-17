@@ -380,9 +380,9 @@ if st.session_state.mundo_atual == 2:
             if st.session_state.pontos >= CUSTO_OVO_MUNDO_2_CARO:
                 st.session_state.pontos -= CUSTO_OVO_MUNDO_2_CARO
                 sorteado = random.choices(
-                   [{"nome": NOME_PET_M2_R1, "arquivo": "logo4.png", "bonus": BONUS_PET_M2_R1, "chance": "50%"}, 
-                    {"nome": NOME_PET_M2_R2, "arquivo": "logo5.png", "bonus": BONUS_PET_M2_R2, "chance": "35%"},
-                    {"nome": NOME_PET_M2_R3, "arquivo": "logo6.png", "bonus": BONUS_PET_M2_R3, "chance": "15%"}],
+                   [{"nome": NOME_PET_M2_R1, "arquivo": "logo10.png", "bonus": BONUS_PET_M2_R1, "chance": "50%"}, 
+                    {"nome": NOME_PET_M2_R2, "arquivo": "logo11.png", "bonus": BONUS_PET_M2_R2, "chance": "35%"},
+                    {"nome": NOME_PET_M2_R3, "arquivo": "logo12.png", "bonus": BONUS_PET_M2_R3, "chance": "15%"}],
                    weights=[50, 35, 15], k=1
                 )[0]
                 st.session_state.pet_slot_m2_2 = sorteado
