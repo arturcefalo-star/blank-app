@@ -291,9 +291,13 @@ with col2:
 st.markdown("---")
 st.subheader("Atualizações:")
 st.write("(1.0.0)(Beta) - Lançamento!!!")
-st.write("(1.4.5) - Sistema de salvamento de jogo, autoclickers e botão de reset")
-st.write("(1.9.0) - Proteção Anti-Impostor: Só atualiza nomes existentes se você tiver mais pontos que o recorde salvo.")
-         
+st.write("(1.0.1) - Correção de bugs")
+st.write("(1.1.2) - Adição dos Ovos, correção de bugs e preços balanceados")
+st.write("(1.2.3) - Adição de novos pets e ovos e o log de atualizações")
+st.write("(1.3.4) - Interface reformulada e correção de bugs")
+st.write("(1.4.5) - Sistema de salvamento de jogo, adição de novos autoclickers, adição de um botão de reset e correção de bugs")
+st.write("(1.5.5) - Adição do top global (Coloque seu nome na barrinha e clique em enviar e clique novamente para atualizar, para atualizar seu nome, basta trocar ele na barrinha)")
+
 # --- 7. TABELA DE CLASSIFICAÇÃO COM PROTEÇÃO CONTRA ATUALIZAÇÃO INDEVIDA ---
 st.markdown("---")
 st.subheader("Top 5 global:")
