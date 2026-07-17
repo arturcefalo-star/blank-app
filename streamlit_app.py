@@ -8,16 +8,16 @@ from streamlit_autorefresh import st_autorefresh
 # =====================================================================
 # ⚙️ COLOQUE AQUI OS NOMES E BÔNUS PERSONALIZADOS DO OVO DO MUNDO 2!
 # =====================================================================
-NOME_PET_7 = "Goku Instinto Superior"  # Nome do Logo 7
-BONUS_PET_7 = 500                      # Bônus por clique do Logo 7
+NOME_PET_7 = "Barbie"  # Nome do Logo 7
+BONUS_PET_7 = 5000000                      # Bônus por clique do Logo 7
 
-NOME_PET_8 = "Vegeta Ego Superior"    # Nome do Logo 8
-BONUS_PET_8 = 2500                     # Bônus por clique do Logo 8
+NOME_PET_8 = "Homem A."    # Nome do Logo 8
+BONUS_PET_8 = 10000000                     # Bônus por clique do Logo 8
 
-NOME_PET_9 = "Saitama Careca"          # Nome do Logo 9
-BONUS_PET_9 = 10000                    # Bônus por clique do Logo 9
+NOME_PET_9 = "Tame do cossita"          # Nome do Logo 9
+BONUS_PET_9 = 50000000                    # Bônus por clique do Logo 9
 
-CUSTO_OVO_MUNDO_2 = 500000             # Custo para abrir o ovo no Mundo 2
+CUSTO_OVO_MUNDO_2 = 5000000             # Custo para abrir o ovo no Mundo 2
 # =====================================================================
 
 # --- CONFIGURAÇÕES DE ADMIN ---
