@@ -80,7 +80,7 @@ def carregar_leaderboard():
             usuarios_unicos = {}
             for jogador in dados:
                 nome = jogador["Jogador"]
-                pontos = advertiser_points = jogador.get("Pontos", jogador.get("Points", 0))
+                pontos = jogador.get("Pontos", jogador.get("Points", 0))
                 
                 if nome.lower() not in usuarios_unicos or pontos > usuarios_unicos[nome.lower()]["Pontos"]:
                     usuarios_unicos[nome.lower()] = {"Jogador": nome, "Pontos": pontos}
@@ -302,8 +302,9 @@ with st.sidebar:
                     col_adm1, col_adm2, col_adm3, col_adm4 = st.columns([2, 1, 1, 1])
                     col_adm1.write(f"**{nome_jogador}**: {jogador['Pontos']} pts")
                     
-                    # MODIFICADO: O botão "Ban" agora apenas limpa os status (reseta) sem remover do Placar Global
-                    if col_adm2.button("Ban", key=f"del_{i}"):
+                    # --- CORREÇÃO DO BOTÃO BAN PARA PEGAR QUALQUE JOGADOR CORRETAMENTE ---
+                    if col_adm2.button("Ban", key=f"del_{key_jogador}_{i}"):
+                        # 1. Reseta os dados no usuarios.json (Se a conta existir lá)
                         if key_jogador in usuarios_db:
                             usuarios_db[key_jogador]["dados"] = {
                                 "pontos": 0, "poder_base": 1, "pontos_por_segundo": 0,
@@ -313,11 +314,15 @@ with st.sidebar:
                             }
                             salvar_todos_usuarios(usuarios_db)
                         
-                        # Atualiza a pontuação dele no placar para 0
-                        jogador['Pontos'] = 0
+                        # 2. Reseta a pontuação diretamente no objeto correto da lista do placar global
+                        for j in placar_completo:
+                            if j["Jogador"].lower() == key_jogador:
+                                j["Pontos"] = 0
+                                break
+                                
                         salvar_leaderboard_completo(placar_completo)
 
-                        # Se o admin aplicar em si mesmo, atualiza localmente
+                        # 3. Se o alvo do ban for o próprio administrador logado, limpa o state local imediatamente
                         if key_jogador == st.session_state.nome_usuario.lower():
                             st.session_state.pontos = 0
                             st.session_state.poder_base = 1
@@ -333,12 +338,15 @@ with st.sidebar:
 
                         st.rerun()
                     
-                    if col_adm3.button("Add", key=f"add_{i}"):
-                        jogador['Pontos'] += qtd_pontos
+                    if col_adm3.button("Add", key=f"add_{key_jogador}_{i}"):
+                        for j in placar_completo:
+                            if j["Jogador"].lower() == key_jogador:
+                                j["Pontos"] += qtd_pontos
+                                break
                         salvar_leaderboard_completo(placar_completo)
                         
                         if key_jogador in usuarios_db:
-                            usuarios_db[key_jogador]["dados"]["pontos"] = jogador['Pontos']
+                            usuarios_db[key_jogador]["dados"]["pontos"] = max(0, usuarios_db[key_jogador]["dados"].get("pontos", 0) + qtd_pontos)
                             salvar_todos_usuarios(usuarios_db)
                             
                         if key_jogador == st.session_state.nome_usuario.lower():
@@ -346,12 +354,15 @@ with st.sidebar:
                             st.session_state.pontos_leaderboard_cache = st.session_state.pontos
                         st.rerun()
 
-                    if col_adm4.button("Rem", key=f"rem_{i}"):
-                        jogador['Pontos'] = max(0, jogador['Pontos'] - qtd_pontos)
+                    if col_adm4.button("Rem", key=f"rem_{key_jogador}_{i}"):
+                        for j in placar_completo:
+                            if j["Jogador"].lower() == key_jogador:
+                                j["Pontos"] = max(0, j["Pontos"] - qtd_pontos)
+                                break
                         salvar_leaderboard_completo(placar_completo)
                         
                         if key_jogador in usuarios_db:
-                            usuarios_db[key_jogador]["dados"]["pontos"] = jogador['Pontos']
+                            usuarios_db[key_jogador]["dados"]["pontos"] = max(0, usuarios_db[key_jogador]["dados"].get("pontos", 0) - qtd_pontos)
                             salvar_todos_usuarios(usuarios_db)
                             
                         if key_jogador == st.session_state.nome_usuario.lower():
