@@ -17,7 +17,8 @@ def salvar_jogo():
         "pontos_por_segundo": st.session_state.pontos_por_segundo,
         "pet_slot_1": st.session_state.pet_slot_1,
         "pet_slot_2": st.session_state.pet_slot_2,
-        "ultimo_tick": st.session_state.ultimo_tick
+        "ultimo_tick": st.session_state.ultimo_tick,
+        "ja_enviou": st.session_state.ja_enviou  # Salva o estado do envio
     }
     with open(SAVE_FILE, "w", encoding="utf-8") as f:
         json.dump(dados, f, ensure_ascii=False, indent=4)
@@ -44,23 +45,19 @@ def carregar_leaderboard():
 def salvar_no_leaderboard(nome, pontos):
     leaderboard = carregar_leaderboard()
     
-    # Procura se o jogador já existe na tabela (ignora maiúsculas/minúsculas)
+    # Procura se o jogador já existe na tabela
     jogador_encontrado = False
     for jogador in leaderboard:
         if jogador["Jogador"].lower() == nome.lower():
             jogador_encontrado = True
-            # Só atualiza se a nova pontuação for maior que o recorde antigo
-            if pontos > jogador["Pontos"]:
+            if pontos > jogador["Points" if "Points" in jogador else "Pontos"]:
                 jogador["Pontos"] = pontos
-                # Atualiza também a grafia do nome caso o jogador tenha digitado diferente
                 jogador["Jogador"] = nome 
             break
             
-    # Se o jogador não existia no placar, adiciona ele como novo
     if not jogador_encontrado:
         leaderboard.append({"Jogador": nome, "Pontos": pontos})
         
-    # Ordena do maior para o menor e pega os 5 melhores
     leaderboard = sorted(leaderboard, key=lambda x: x["Pontos"], reverse=True)[:5]
     with open(LEADERBOARD_FILE, "w", encoding="utf-8") as f:
         json.dump(leaderboard, f, ensure_ascii=False, indent=4)
@@ -79,6 +76,8 @@ if "pontos_por_segundo" not in st.session_state:
     st.session_state.pontos_por_segundo = dados_salvos.get("pontos_por_segundo", 0) if dados_salvos else 0
 if "ultimo_tick" not in st.session_state:
     st.session_state.ultimo_tick = dados_salvos.get("ultimo_tick", time.time()) if dados_salvos else time.time()
+if "ja_enviou" not in st.session_state:
+    st.session_state.ja_enviou = dados_salvos.get("ja_enviou", False) if dados_salvos else False
 
 # SISTEMA DE DELAY
 if "ultima_compra" not in st.session_state:
@@ -273,22 +272,33 @@ st.write("(1.1.2) - Adição dos Ovos, correção de bugs e preços balanceados"
 st.write("(1.2.3) - Adição de novos pets e ovos e o log de atualizações")
 st.write("(1.3.4) - Interface reformulada e correção de bugs")
 st.write("(1.4.5) - Sistema de salvamento de jogo, adição de novos autoclickers, adição de um botão de reset e correção de bugs")
-st.write("(1.5.0) - Tabela de classificação inteligente (Evita repetição de nomes e atualiza os recordes)")
+st.write("(1.5.2) - Bloqueio de envio único para o placar de classificação")
 
 # 7. TABELA DE CLASSIFICAÇÃO (LEADERBOARD)
 st.markdown("---")
 st.subheader("🏆 Tabela de Classificação (Top 5)")
 
-# Enviar pontuação atual para o placar
-nome_jogador = st.text_input("Digite seu nome para salvar seu recorde:", max_chars=15, key="nome_leaderboard")
-if st.button("Enviar Pontuação para o Placar", use_container_width=True):
-    if nome_jogador.strip() != "":
-        salvar_no_leaderboard(nome_jogador.strip(), st.session_state.pontos)
-        st.success(f"Recorde de {st.session_state.pontos} pontos enviado!")
-        time.sleep(0.5)
-        st.rerun()
-    else:
-        st.error("Por favor, digite um nome antes de enviar.")
+# Enviar pontuação atual para o placar (Desativa o campo se já tiver enviado)
+nome_jogador = st.text_input(
+    "Digite seu nome para salvar seu recorde:", 
+    max_chars=15, 
+    key="nome_leaderboard",
+    disabled=st.session_state.ja_enviou
+)
+
+# O botão de enviar fica desabilitado se a pessoa já usou ou se o campo estiver vazio
+botao_desativado = st.session_state.ja_enviou or nome_jogador.strip() == ""
+
+if st.button("Enviar Pontuação para o Placar", use_container_width=True, disabled=botao_desativado):
+    st.session_state.ja_enviou = True  # Ativa o bloqueio permanente
+    salvar_no_leaderboard(nome_jogador.strip(), st.session_state.pontos)
+    salvar_jogo()  # Salva o bloqueio no arquivo savegame.json
+    st.success(f"Recorde de {st.session_state.pontos} pontos enviado com sucesso!")
+    time.sleep(0.5)
+    st.rerun()
+
+if st.session_state.ja_enviou:
+    st.info("🔒 Você já enviou sua pontuação nesta rodada. Caso queira mandar uma nova pontuação mais alta, você precisará resetar o jogo.")
 
 # Exibir a tabela
 dados_placar = carregar_leaderboard()
@@ -320,6 +330,7 @@ else:
             st.session_state.pet_slot_1 = None
             st.session_state.pet_slot_2 = None
             st.session_state.ultimo_tick = time.time()
+            st.session_state.ja_enviou = False  # Libera o placar após o reset completo
             st.session_state.confirmando_reset = False
             atualizar_poder_clique()
             st.success("Jogo reiniciado com sucesso!")
