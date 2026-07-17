@@ -388,8 +388,7 @@ st.markdown("---")
 st.subheader("Loja de Melhorias")
 
 if st.session_state.mundo_atual == 2:
-    st.info("🌌 Loja Quântica: Preços elevados, poder de outro mundo!")
-    melhorias_clique = [
+        melhorias_clique = [
         {"qtd": 50000, "custo": 15000000}, {"qtd": 100000, "custo": 50000000},
         {"qtd": 250000, "custo": 150000000}, {"qtd": 500000, "custo": 500000000},
         {"qtd": 1000000, "custo": 1000000000}, {"qtd": 2500000, "custo": 3500000000},
