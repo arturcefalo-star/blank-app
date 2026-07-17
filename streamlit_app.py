@@ -5,6 +5,21 @@ import json
 import os
 from streamlit_autorefresh import st_autorefresh
 
+# =====================================================================
+# ⚙️ COLOQUE AQUI OS NOMES E BÔNUS PERSONALIZADOS DO OVO DO MUNDO 2!
+# =====================================================================
+NOME_PET_7 = "Goku Instinto Superior"  # Nome do Logo 7
+BONUS_PET_7 = 500                      # Bônus por clique do Logo 7
+
+NOME_PET_8 = "Vegeta Ego Superior"    # Nome do Logo 8
+BONUS_PET_8 = 2500                     # Bônus por clique do Logo 8
+
+NOME_PET_9 = "Saitama Careca"          # Nome do Logo 9
+BONUS_PET_9 = 10000                    # Bônus por clique do Logo 9
+
+CUSTO_OVO_MUNDO_2 = 500000             # Custo para abrir o ovo no Mundo 2
+# =====================================================================
+
 # --- CONFIGURAÇÕES DE ADMIN ---
 SENHA_ADMIN = "XxIIlIIxX"  # ⚠️ ALTERE PARA A SUA SENHA SECRETA!
 
@@ -21,6 +36,7 @@ def salvar_jogo():
         "pontos_por_segundo": st.session_state.pontos_por_segundo,
         "pet_slot_1": st.session_state.pet_slot_1,
         "pet_slot_2": st.session_state.pet_slot_2,
+        "pet_slot_mundo2": st.session_state.pet_slot_mundo2,  # Novo slot salvo
         "ultimo_tick": st.session_state.ultimo_tick,
         "ja_enviou": st.session_state.ja_enviou,
         "nome_usuario": st.session_state.nome_usuario,
@@ -128,10 +144,13 @@ if "ultima_compra" not in st.session_state:
 if "confirmando_reset" not in st.session_state:
     st.session_state.confirmando_reset = False
 
+# Slots de Pets
 if "pet_slot_1" not in st.session_state:
     st.session_state.pet_slot_1 = dados_salvos.get("pet_slot_1", None)
 if "pet_slot_2" not in st.session_state:
     st.session_state.pet_slot_2 = dados_salvos.get("pet_slot_2", None)
+if "pet_slot_mundo2" not in st.session_state:
+    st.session_state.pet_slot_mundo2 = dados_salvos.get("pet_slot_mundo2", None)
 
 if "pontos_leaderboard_cache" not in st.session_state:
     st.session_state.pontos_leaderboard_cache = -1
@@ -142,6 +161,8 @@ def atualizar_poder_clique():
         bonus_total += st.session_state.pet_slot_1["bonus"]
     if st.session_state.pet_slot_2:
         bonus_total += st.session_state.pet_slot_2["bonus"]
+    if st.session_state.pet_slot_mundo2:
+        bonus_total += st.session_state.pet_slot_mundo2["bonus"]
     st.session_state.poder_clique = st.session_state.poder_base + bonus_total
 
 atualizar_poder_clique()
@@ -224,7 +245,7 @@ with st.sidebar:
                         st.rerun()
 
                     if col_adm4.button("Rem", key=f"rem_{i}", help=f"Remover -{qtd_pontos} pontos"):
-                        jogador['Pontos'] = max(0, jogador['Pontos'] - qtd_pontos)
+                        jogador['Pontos'] = max(0, grandfather=max(0, jogador['Pontos'] - qtd_pontos))
                         salvar_leaderboard_completo(placar_completo)
                         st.rerun()
             else:
@@ -287,6 +308,48 @@ if st.session_state.mundo_atual == 2:
     col_status1.write(f"**Poder de clique:** {st.session_state.poder_clique * 2} (2X)")
     col_status2.write(f"**Pontos por segundo:** {st.session_state.pontos_por_segundo}")
 
+    st.markdown("---")
+
+    # --- 6. SISTEMA DE OVOS DO MUNDO 2 (EXCLUSIVO) ---
+    st.subheader("🥚 Ovo Cósmico Exclusivo do Mundo 2:")
+    col_egg_m2_1, col_egg_m2_2 = st.columns(2)
+
+    with col_egg_m2_1:
+        st.write(f"### Ovo Quântico:")
+        st.write(f"{NOME_PET_7}: 50% (+{BONUS_PET_7:,} Pontos)")
+        st.write(f"{NOME_PET_8}: 35% (+{BONUS_PET_8:,} Pontos)")
+        st.write(f"{NOME_PET_9}: 15% (+{BONUS_PET_9:,} Pontos)")
+        
+        desativar_ovo_m2 = st.session_state.pontos < CUSTO_OVO_MUNDO_2 or loja_em_cooldown
+        
+        if st.button(f"Abrir Ovo Cósmico = {CUSTO_OVO_MUNDO_2:,} Pontos", disabled=desativar_ovo_m2, key="botao_ovo_m2"):
+            st.session_state.ultima_compra = time.time()  
+            if st.session_state.pontos >= CUSTO_OVO_MUNDO_2:
+                st.session_state.pontos -= CUSTO_OVO_MUNDO_2
+                sorteado_m2 = random.choices(
+                   [{"nome": NOME_PET_7, "arquivo": "logo7.png", "bonus": BONUS_PET_7, "chance": "50%"}, 
+                    {"nome": NOME_PET_8, "arquivo": "logo8.png", "bonus": BONUS_PET_8, "chance": "35%"},
+                    {"nome": NOME_PET_9, "arquivo": "logo9.png", "bonus": BONUS_PET_9, "chance": "15%"}],
+                   weights=[50, 35, 15], k=1
+                )[0]
+                st.session_state.pet_slot_mundo2 = sorteado_m2
+                atualizar_poder_clique()
+                salvar_jogo()
+                time.sleep(0.5) 
+                st.rerun()
+
+    with col_egg_m2_2:
+        if st.session_state.pet_slot_mundo2:
+            pet = st.session_state.pet_slot_mundo2
+            st.write("**Pet Espacial Equipado:**")
+            try:
+                st.image(pet["arquivo"], width=150)
+            except Exception:
+                st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada.")
+            st.caption(f"{pet['nome']} ({pet['chance']}) | +{pet['bonus']:,} por clique")
+        else:
+            st.info("Você ainda não chocou nenhum Pet do Mundo 2 neste slot.")
+
 else:
     # -------------------------------------------------------------
     # 🌍 INTERFACE DO PRIMEIRO MUNDO
@@ -310,7 +373,7 @@ else:
 
     st.markdown("---")
 
-    # --- 6. SISTEMA DE OVOS (PETS) ---
+    # --- 6. SISTEMA DE OVOS DO MUNDO 1 ---
     st.subheader("Comprar Ovos:")
     col3, col4 = st.columns(2)
 
@@ -388,7 +451,7 @@ st.markdown("---")
 st.subheader("Loja de Melhorias")
 
 if st.session_state.mundo_atual == 2:
-    
+    st.info("🌌 Loja Quântica: Preços elevados, poder de outro mundo!")
     melhorias_clique = [
         {"qtd": 50000, "custo": 15000000}, {"qtd": 100000, "custo": 50000000},
         {"qtd": 250000, "custo": 150000000}, {"qtd": 500000, "custo": 500000000},
@@ -457,16 +520,8 @@ with col2:
 # --- 8. LOG DE ATUALIZAÇÕES ---
 st.markdown("---")
 st.subheader("Atualizações:")
-st.subheader("Atualizações:")
 st.write("(1.0.0)(Beta) - Lançamento!!!")
-st.write("(1.0.1) - Correção de bugs")
-st.write("(1.1.2) - Adição dos Ovos, correção de bugs e preços balanceados")
-st.write("(1.2.3) - Adição de novos pets e ovos e o log de atualizações")
-st.write("(1.3.4) - Interface reformulada e correção de bugs")
-st.write("(1.4.5) - Sistema de salvamento de jogo, adição de novos autoclickers, adição de um botão de reset e correção de bugs")
-st.write("(1.5.6) - Adição do top global (Coloque seu nome na barrinha e clique em enviar e clique novamente para atualizar)")
-st.write("(1.6.7) - Adição do painel de adimin com senha e correção de bugs")
-st.write("(1.7.8) - Adição do segundo mundo!!! novas melhorias, nova interface de melhorias, correção de bugs e muito mais!!!")
+st.write("(1.7.0) - 🌌 DESBLOQUEIO DO SEGUNDO MUNDO! Novo portal de teletransporte e bônus quântico de cliques por 10M de pontos!")
 
 # --- 9. TABELA DE CLASSIFICAÇÃO ---
 st.markdown("---")
@@ -546,6 +601,7 @@ else:
             st.session_state.pontos_por_segundo = 0
             st.session_state.pet_slot_1 = None
             st.session_state.pet_slot_2 = None
+            st.session_state.pet_slot_mundo2 = None
             st.session_state.ultimo_tick = time.time()
             st.session_state.ja_enviou = False  
             st.session_state.nome_usuario = ""
