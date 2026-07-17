@@ -283,7 +283,7 @@ st.write("(1.1.2) - Adição dos Ovos, correção de bugs e preços balanceados"
 st.write("(1.2.3) - Adição de novos pets e ovos e o log de atualizações")
 st.write("(1.3.4) - Interface reformulada e correção de bugs")
 st.write("(1.4.5) - Sistema de salvamento de jogo, adição de novos autoclickers, adição de um botão de reset e correção de bugs")
-st.write("(1.6.0) - Correção definitiva: Atualização forçada em tempo real do placar")
+st.write("(1.6.5) - Botão de envio livre para atualizar pontuações consecutivas sem bloqueio")
 
 # 7. TABELA DE CLASSIFICAÇÃO (LEADERBOARD)
 st.markdown("---")
@@ -295,25 +295,22 @@ dados_placar = carregar_leaderboard()
 nome_jogador = st.text_input(
     "Digite seu nome para salvar seu recorde:", 
     max_chars=15, 
-    key="nome_leaderboard",
-    disabled=st.session_state.ja_enviou
+    key="nome_leaderboard"
 )
 
-botao_desativado = st.session_state.ja_enviou or nome_jogador.strip() == ""
+# O botão agora só fica desativado se o campo de texto estiver vazio!
+botao_desativado = nome_jogador.strip() == ""
 
 if st.button("Enviar Pontuação para o Placar", use_container_width=True, disabled=botao_desativado):
     st.session_state.ja_enviou = True  
-    # Atualiza o arquivo de leaderboard e retorna os dados novos na hora
+    # Atualiza a pontuação no arquivo (substitui se for maior)
     dados_placar = salvar_no_leaderboard(nome_jogador.strip(), st.session_state.pontos)
     salvar_jogo()  
-    st.success(f"Recorde de {st.session_state.pontos} pontos enviado com sucesso!")
+    st.success(f"Pontuação de {nome_jogador.strip()} atualizada com sucesso no placar!")
     time.sleep(0.1)
     st.rerun()
 
-if st.session_state.ja_enviou:
-    st.info("🔒 Você já enviou sua pontuação nesta rodada. Caso queira mandar uma nova pontuação mais alta, você precisará resetar o jogo.")
-
-# Exibir a tabela com garantia de dados atualizados
+# Exibir a tabela com os dados atualizados instantaneamente
 if dados_placar:
     st.table(dados_placar)
 else:
