@@ -16,7 +16,6 @@ def salvar_jogo():
         "pontos_por_segundo": st.session_state.pontos_por_segundo,
         "pet_slot_1": st.session_state.pet_slot_1,
         "pet_slot_2": st.session_state.pet_slot_2,
-        "ovo1_bloqueado": st.session_state.ovo1_bloqueado,
         "ultimo_tick": st.session_state.ultimo_tick
     }
     with open(SAVE_FILE, "w", encoding="utf-8") as f:
@@ -58,9 +57,6 @@ if "pet_slot_1" not in st.session_state:
     st.session_state.pet_slot_1 = dados_salvos.get("pet_slot_1", None) if dados_salvos else None
 if "pet_slot_2" not in st.session_state:
     st.session_state.pet_slot_2 = dados_salvos.get("pet_slot_2", None) if dados_salvos else None
-
-if "ovo1_bloqueado" not in st.session_state:
-    st.session_state.ovo1_bloqueado = dados_salvos.get("ovo1_bloqueado", False) if dados_salvos else False
 
 # Recalcular o poder de clique
 def atualizar_poder_clique():
@@ -122,10 +118,11 @@ with col3:
     st.write("Manoel G: 15% (+10 Pontos)")
     
     custo_ovo1 = 100
-    desativar_ovo1 = st.session_state.ovo1_bloqueado or st.session_state.pontos < custo_ovo1 or loja_em_cooldown
+    # REMOVIDO: O ovo 1 não se desativa mais por bloqueio de progresso externo
+    desativar_ovo1 = st.session_state.pontos < custo_ovo1 or loja_em_cooldown
     
     if st.button(f"Abrir Ovo = {custo_ovo1} Pontos", disabled=desativar_ovo1, key="botao_ovo1"):
-        st.session_state.ultima_compra = time.time()  # Registra o tempo do clique
+        st.session_state.ultima_compra = time.time()  
         if st.session_state.pontos >= custo_ovo1:
             st.session_state.pontos -= custo_ovo1
             sorteado_ovo1 = random.choices(
@@ -137,7 +134,7 @@ with col3:
             st.session_state.pet_slot_1 = sorteado_ovo1
             atualizar_poder_clique()
             salvar_jogo()
-            time.sleep(0.5) # Aguarda o cooldown passar antes de recarregar a tela!
+            time.sleep(0.5) 
             st.rerun()
 
     if st.session_state.pet_slot_1:
@@ -162,7 +159,8 @@ with col4:
         st.session_state.ultima_compra = time.time()
         if st.session_state.pontos >= custo_ovo2:
             st.session_state.pontos -= custo_ovo2
-            st.session_state.ovo1_bloqueado = True  
+            
+            # REMOVIDO: Linha que travava o ovo 1 ao comprar o ovo 2 foi excluída daqui
             
             sorteado_ovo2 = random.choices(
                [{"nome": "Dora A.", "arquivo": "logo4.png", "bonus": 10, "chance": "50%"}, 
@@ -173,7 +171,7 @@ with col4:
             st.session_state.pet_slot_2 = sorteado_ovo2
             atualizar_poder_clique()
             salvar_jogo()
-            time.sleep(0.5) # Aguarda o cooldown passar antes de recarregar a tela!
+            time.sleep(0.5) 
             st.rerun()
 
     if st.session_state.pet_slot_2:
@@ -217,7 +215,7 @@ with col1:
                 st.session_state.poder_base += item['qtd']
                 atualizar_poder_clique()  
                 salvar_jogo()
-                time.sleep(0.5) # Aguarda o cooldown passar antes de recarregar a tela!
+                time.sleep(0.5) 
                 st.rerun()
 
 with col2:
@@ -232,7 +230,7 @@ with col2:
                 st.session_state.pontos -= item['custo']
                 st.session_state.pontos_por_segundo += item['qtd']
                 salvar_jogo()
-                time.sleep(0.5) # Aguarda o cooldown passar antes de recarregar a tela!
+                time.sleep(0.5) 
                 st.rerun()
 
 # 6. LOG DE ATUALIZAÇÕES
@@ -244,6 +242,7 @@ st.write("(1.1.2) - Adição dos Ovos, correção de bugs e preços balanceados"
 st.write("(1.2.3) - Adição de novos pets e ovos e o log de atualizações")
 st.write("(1.3.4) - Interface reformulada e correção de bugs")
 st.write("(1.4.5) - Sistema de salvamento de jogo, adição de novos autoclickers, adição de um botão de reset e correção de bugs")
+st.write("(1.4.8) - Removido o bloqueio do Ovo Comum ao comprar o Ovo Raro")
 
 # 7. SISTEMA DE RECONSTRUÇÃO/RESET DE JOGO
 st.markdown("---")
@@ -264,7 +263,6 @@ else:
             st.session_state.pontos_por_segundo = 0
             st.session_state.pet_slot_1 = None
             st.session_state.pet_slot_2 = None
-            st.session_state.ovo1_bloqueado = False
             st.session_state.ultimo_tick = time.time()
             st.session_state.confirmando_reset = False
             atualizar_poder_clique()
