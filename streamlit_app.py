@@ -330,7 +330,7 @@ if st.button("Enviar Pontuação para o Placar", use_container_width=True, disab
     if pontos_do_registro_existente is not None and nome_novo.lower() != nome_antigo.lower():
         # Se você quer usar o nome de outra pessoa, você DEVE ter batido o recorde dela
         if st.session_state.pontos <= pontos_do_registro_existente:
-            st.error(f"❌ Esse nome pertence a outro jogador que possui {pontos_do_registro_existente} pontos! Você precisa superá-lo para usar esse nome.")
+            st.error(f"Esse nome pertence a outro jogador que possui {pontos_do_registro_existente} pontos! Você precisa superá-lo para usar esse nome.")
             nome_novo = None # Bloqueia o avanço do salvamento
 
     # Se passou nas validações, salva as alterações
