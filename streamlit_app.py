@@ -73,7 +73,7 @@ with col3:
     st.write("Peppa Pig: 35% (+5 Pontos)")
     st.write("Manoel G: 15% (+10 Pontos)")
     
-    custo_ovo1 = 1
+    custo_ovo1 = 100
     desativar_ovo1 = st.session_state.ovo1_bloqueado or st.session_state.pontos < custo_ovo1
     
     if st.button(f"Abrir Ovo = {custo_ovo1} Pontos", disabled=desativar_ovo1, key="botao_ovo1"):
@@ -91,7 +91,11 @@ with col3:
     if st.session_state.pet_slot_1:
         pet = st.session_state.pet_slot_1
         st.write("**Pet Equipado:**")
-        st.image(pet["arquivo"], width=150)
+        # PROTEÇÃO DE IMAGEM: Se a imagem não for encontrada, o app exibe um aviso em vez de travar
+        try:
+            st.image(pet["arquivo"], width=150)
+        except Exception:
+            st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada na pasta do projeto.")
         st.caption(f"{pet['nome']} ({pet['chance']}) | +{pet['bonus']} por clique")
 
 with col4:
@@ -100,12 +104,12 @@ with col4:
     st.write("Sonic: 35% (+50 Pontos)")
     st.write("Michael J.: 15% (+100 Pontos)")
     
-    custo_ovo2 = 1
+    custo_ovo2 = 1000
     desativar_ovo2 = st.session_state.pontos < custo_ovo2
     
     if st.button(f"Abrir Ovo = {custo_ovo2} Pontos", disabled=desativar_ovo2, key="botao_ovo2"):
         st.session_state.pontos -= custo_ovo2
-        st.session_state.ovo1_bloqueado = True  # Bloqueia o ovo 1 se desejado por sua mecânica original
+        st.session_state.ovo1_bloqueado = True  # Bloqueia o ovo 1 se desejado por sua mecânica
         
         sorteado_ovo2 = random.choices(
            [{"nome": "Dora A.", "arquivo": "logo4.png", "bonus": 10, "chance": "50%"}, 
@@ -120,7 +124,11 @@ with col4:
     if st.session_state.pet_slot_2:
         pet = st.session_state.pet_slot_2
         st.write("**Pet Equipado:**")
-        st.image(pet["arquivo"], width=150)
+        # PROTEÇÃO DE IMAGEM: Se a imagem não for encontrada, o app exibe um aviso em vez de travar
+        try:
+            st.image(pet["arquivo"], width=150)
+        except Exception:
+            st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada na pasta do projeto.")
         st.caption(f"{pet['nome']} ({pet['chance']}) | +{pet['bonus']} por clique")
 
 st.markdown("---")
