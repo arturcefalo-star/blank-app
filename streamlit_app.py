@@ -31,6 +31,7 @@ BONUS_PET_M2_R3 = 50000000
 CUSTO_OVO_MUNDO_2_CARO = 500000000   # Custo do segundo ovo do Mundo 2
 # =====================================================================
 
+# ATUALIZADO: Nova senha definida aqui
 SENHA_ADMIN = "XXxx67xxXX"
 ACCOUNTS_FILE = "usuarios.json"
 LEADERBOARD_FILE = "leaderboard.json"
@@ -244,7 +245,7 @@ if tempo_passado >= 1.0:
     st.session_state.pontos_leaderboard_cache = st.session_state.pontos
     salvar_progresso_atual()
 
-# --- SINCRONIZAÇÃO SEGURA DO ADMIN ---
+# --- SINCRONIZAÇÃO SEGURA DO JOGADOR LOGADO ---
 if st.session_state.nome_usuario != "" and os.path.exists(LEADERBOARD_FILE):
     try:
         with open(LEADERBOARD_FILE, "r", encoding="utf-8") as f:
@@ -277,7 +278,7 @@ with st.sidebar:
         senha_input = st.text_input("Digite a senha de Admin:", type="password")
         
         if len(senha_input) > 0 and senha_input == SENHA_ADMIN:
-            st.success("Success!")
+            st.success("Acesso Autorizado!")
             
             st.subheader("Modificador de Pontos")
             qtd_pontos = st.number_input("Quantidade de pontos para Add/Rem:", min_value=1, value=1000, step=100)
@@ -302,7 +303,7 @@ with st.sidebar:
                     col_adm1, col_adm2, col_adm3, col_adm4 = st.columns([2, 1, 1, 1])
                     col_adm1.write(f"**{nome_jogador}**: {jogador['Pontos']} pts")
                     
-                    # CORRIGIDO: Botão BAN agora deleta o progresso inteiro do JSON de usuários também!
+                    # CORRIGIDO: Botão BAN agora funciona e limpa o progresso de QUALQUER jogador no banco
                     if col_adm2.button("Ban", key=f"del_{i}"):
                         if key_jogador in usuarios_db:
                             usuarios_db[key_jogador]["dados"] = {
@@ -313,6 +314,7 @@ with st.sidebar:
                             }
                             salvar_todos_usuarios(usuarios_db)
                         
+                        # Se o admin banir a si mesmo, limpa a sessão local também
                         if key_jogador == st.session_state.nome_usuario.lower():
                             st.session_state.pontos = 0
                             st.session_state.poder_base = 1
@@ -330,6 +332,7 @@ with st.sidebar:
                         salvar_leaderboard_completo(placar_completo)
                         st.rerun()
                     
+                    # CORRIGIDO: Botão ADD agora funciona para todos os jogadores no banco
                     if col_adm3.button("Add", key=f"add_{i}"):
                         jogador['Pontos'] += qtd_pontos
                         salvar_leaderboard_completo(placar_completo)
@@ -343,7 +346,7 @@ with st.sidebar:
                             st.session_state.pontos_leaderboard_cache = st.session_state.pontos
                         st.rerun()
 
-                    # CORRIGIDO: Botão REM agora salva a perda de pontos diretamente na conta do alvo!
+                    # CORRIGIDO: Botão REM agora funciona para todos os jogadores no banco
                     if col_adm4.button("Rem", key=f"rem_{i}"):
                         jogador['Pontos'] = max(0, jogador['Pontos'] - qtd_pontos)
                         salvar_leaderboard_completo(placar_completo)
