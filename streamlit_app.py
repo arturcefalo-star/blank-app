@@ -175,13 +175,13 @@ with st.sidebar:
                     col_adm1.write(f"**{jogador['Jogador']}**: {jogador['Pontos']} pts")
                     
                     # Botão para deletar jogador
-                    if col_adm2.button("🗑️", key=f"del_{i}", help="Deletar este jogador"):
+                    if col_adm2.button("Remover", key=f"del_{i}", help="Deletar este jogador"):
                         placar_completo.pop(i)
                         salvar_leaderboard_completo(placar_completo)
                         st.rerun()
                     
                     # Botão para somar pontos (+5000)
-                    if col_adm3.button("➕", key=f"add_{i}", help="Adicionar +5000 pontos"):
+                    if col_adm3.button("Add Pontos", key=f"add_{i}", help="Adicionar +5000 pontos"):
                         jogador['Pontos'] += 5000
                         salvar_leaderboard_completo(placar_completo)
                         st.rerun()
