@@ -110,7 +110,9 @@ def atualizar_no_leaderboard(nome, pontos):
             j["Pontos"] = pontos  
             j["Jogador"] = nome
             break
-    if not encontrando:
+            
+    # CORRIGIDO: Agora usa a variável correta "encontrado"
+    if not encontrado:
         leaderboard.append({"Jogador": nome, "Pontos": pontos})
     
     leaderboard = sorted(leaderboard, key=lambda x: x["Pontos"], reverse=True)
@@ -258,7 +260,7 @@ if st.session_state.nome_usuario != "" and os.path.exists(LEADERBOARD_FILE):
     except Exception:
         pass
 
-# COOLDOWN DE COMPRA (Aumentado para 0.6s para evitar cliques fantasmas repetidos antes do rerun)
+# COOLDOWN DE COMPRA
 loja_em_cooldown = (time.time() - st.session_state.ultima_compra) < 0.6
 
 # --- BARRA LATERAL: LOGOUT E PAINEL ADMIN ---
@@ -582,7 +584,6 @@ with col1:
             key_btn = f"c_{st.session_state.mundo_atual}_{i}"
 
             if st.button(texto, key=key_btn, disabled=desativado, use_container_width=True):
-                # TRAVA ADICIONAL DE SEGURANÇA EM BACKEND
                 if st.session_state.pontos >= item['custo']:
                     st.session_state.ultima_compra = time.time()
                     st.session_state.pontos -= item['custo']
@@ -590,7 +591,7 @@ with col1:
                     atualizar_poder_clique()  
                     st.session_state.pontos_leaderboard_cache = st.session_state.pontos
                     salvar_progresso_atual()
-                    time.sleep(0.1) # Pequena pausa física
+                    time.sleep(0.1)
                     st.rerun()
 
 with col2:
@@ -602,14 +603,13 @@ with col2:
             key_btn = f"p_{st.session_state.mundo_atual}_{i}"
 
             if st.button(texto, key=key_btn, disabled=desativado, use_container_width=True):
-                # TRAVA ADICIONAL DE SEGURANÇA EM BACKEND
                 if st.session_state.pontos >= item['custo']:
                     st.session_state.ultima_compra = time.time()
                     st.session_state.pontos -= item['custo']
                     st.session_state.pontos_por_segundo += item['qtd']
                     st.session_state.pontos_leaderboard_cache = st.session_state.pontos
                     salvar_progresso_atual()
-                    time.sleep(0.1) # Pequena pausa física
+                    time.sleep(0.1)
                     st.rerun()
 
 # --- ATUALIZAÇÕES AUTOMÁTICAS NO LEADERBOARD ---
