@@ -117,7 +117,7 @@ if "ja_enviou" not in st.session_state:
 if "nome_usuario" not in st.session_state:
     st.session_state.nome_usuario = dados_salvos.get("nome_usuario", "")
 
-# Novas variáveis para o Novo Mundo
+# Variáveis para o Novo Mundo
 if "mundo_2_desbloqueado" not in st.session_state:
     st.session_state.mundo_2_desbloqueado = dados_salvos.get("mundo_2_desbloqueado", False)
 if "mundo_atual" not in st.session_state:
@@ -188,7 +188,7 @@ loja_em_cooldown = (time.time() - st.session_state.ultima_compra) < 0.5
 
 # --- 4. BARRA LATERAL: PAINEL DO ADMINISTRADOR ---
 with st.sidebar:
-    st.header("⚙️ Painel de Adimin")
+    st.header("⚙️ Painel de Admin")
     if st.checkbox("Ativar Modo Administrador"):
         senha_input = st.text_input("Digite a senha de Admin:", type="password")
         
@@ -232,10 +232,9 @@ with st.sidebar:
         elif senha_input != "":
             st.error("Senha incorreta!")
 
-# --- 5. CONTROLE DE VIAJEM ENTRE MUNDOS ---
+# --- 5. CONTROLE DE VIAGEM ENTRE MUNDOS ---
 st.title("Clicker Game")
 
-# Gerenciador visual de mundos
 CUSTO_MUNDO_2 = 10000000
 
 st.markdown("### Mundo 2")
@@ -278,7 +277,6 @@ if st.session_state.mundo_atual == 2:
     except Exception:
         pass
 
-    # Botão de Clique do Mundo 2 (Ganha o DOBRO do poder de clique)
     if st.button("            Click Here          "):
         st.session_state.pontos += (st.session_state.poder_clique * 2)
         salvar_jogo()
@@ -291,7 +289,7 @@ if st.session_state.mundo_atual == 2:
 
 else:
     # -------------------------------------------------------------
-    # 🌍 INTERFACE DO PRIMEIRO MUNDO (CONTEÚDO ORIGINAL DO SEU JOGO)
+    # 🌍 INTERFACE DO PRIMEIRO MUNDO
     # -------------------------------------------------------------
     st.subheader("Primeiro Mundo")
     
@@ -386,24 +384,24 @@ else:
 
 st.markdown("---")
 
-# --- 7. LOJA DE MELHORIAS (DINÂMICA POR MUNDO) ---
+# --- 7. LOJA DE MELHORIAS (DINÂMICA E SIMÉTRICA COM 10 ITENS EM AMBOS) ---
 st.subheader("Loja de Melhorias")
 
 if st.session_state.mundo_atual == 2:
     st.info("🌌 Loja Quântica: Preços elevados, poder de outro mundo!")
     melhorias_clique = [
-        {"qtd": 50000, "custo": 15000000}, 
-        {"qtd": 100000, "custo": 50000000},
-        {"qtd": 250000, "custo": 150000000}, 
-        {"qtd": 500000, "custo": 500000000},
-        {"qtd": 1000000, "custo": 1000000000}
+        {"qtd": 50000, "custo": 15000000}, {"qtd": 100000, "custo": 50000000},
+        {"qtd": 250000, "custo": 150000000}, {"qtd": 500000, "custo": 500000000},
+        {"qtd": 1000000, "custo": 1000000000}, {"qtd": 2500000, "custo": 3500000000},
+        {"qtd": 5000000, "custo": 8000000000}, {"qtd": 10000000, "custo": 20000000000},
+        {"qtd": 25000000, "custo": 50000000000}, {"qtd": 50000000, "custo": 100000000000}
     ]
     melhorias_passivas = [
-        {"qtd": 50000, "custo": 4000000}, 
-        {"qtd": 100000, "custo": 12000000},
-        {"qtd": 250000, "custo": 40000000}, 
-        {"qtd": 500000, "custo": 120000000},
-        {"qtd": 1000000, "custo": 400000000}
+        {"qtd": 50000, "custo": 4000000}, {"qtd": 100000, "custo": 12000000},
+        {"qtd": 250000, "custo": 40000000}, {"qtd": 500000, "custo": 120000000},
+        {"qtd": 1000000, "custo": 400000000}, {"qtd": 2000000, "custo": 1000000000},
+        {"qtd": 5000000, "custo": 3000000000}, {"qtd": 10000000, "custo": 7500000000},
+        {"qtd": 20000000, "custo": 15000000000}, {"qtd": 50000000, "custo": 40000000000}
     ]
 else:
     melhorias_clique = [
@@ -454,7 +452,7 @@ with col2:
                 time.sleep(0.5)
                 st.rerun()
 
-# --- ABAIXO DOS MUNDOS: COMPONENTES GLOBAIS (RANKING E LOGS) ---
+# --- COMPONENTES GLOBAIS DE FINAL DE PÁGINA ---
 
 # --- 8. LOG DE ATUALIZAÇÕES ---
 st.markdown("---")
@@ -462,7 +460,7 @@ st.subheader("Atualizações:")
 st.write("(1.0.0)(Beta) - Lançamento!!!")
 st.write("(1.7.0) - 🌌 DESBLOQUEIO DO SEGUNDO MUNDO! Novo portal de teletransporte e bônus quântico de cliques por 10M de pontos!")
 
-# --- 9. TABELA DE CLASSIFICAÇÃO COM VALIDAÇÃO DE UNICIDADE ---
+# --- 9. TABELA DE CLASSIFICAÇÃO ---
 st.markdown("---")
 st.subheader("Top 5 global:")
 
@@ -517,7 +515,7 @@ if dados_placar:
 else:
     st.info("O placar está vazio. Seja o primeiro a registrar um recorde!")
 
-# --- 10. SISTEMA DE RESET DE JOGO CORRIGIDO ---
+# --- 10. SISTEMA DE RESET DE JOGO ---
 st.markdown("---")
 if not st.session_state.confirmando_reset:
     if st.button("Resetar Jogo", use_container_width=True):
