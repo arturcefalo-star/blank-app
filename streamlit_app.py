@@ -46,7 +46,7 @@ def atualizar_poder_clique():
     st.session_state.poder_clique = st.session_state.poder_base + bonus_total
 
 # 3. INTERFACE PRINCIPAL
-st.title("Clicker Game (Beta)")
+st.title("Clicker Game")
 
 st.write("Trilha sonora: on/off ")
 st.audio("musica67.mp3")
