@@ -172,7 +172,7 @@ with st.sidebar:
         senha_input = st.text_input("Digite a senha de Admin:", type="password")
         
         if len(senha_input) > 0 and senha_input == SENHA_ADMIN:
-            st.success("Acesso liberado, Mestre!")
+            st.success("Success!")
             
             st.subheader("Modificador de Pontos")
             # Campo dinâmico para o admin escolher a quantia de pontos por clique
