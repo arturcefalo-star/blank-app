@@ -679,8 +679,8 @@ st.write("(1.5.6) - Adição do top global")
 st.write("(1.6.7) - Adição do painel de adimin com senha e correção de bugs")
 st.write("(1.7.8) - Adição do segundo mundo!!! novas melhorias, nova interface de melhorias, correção de bugs e muito mais!!!")
 st.write("(1.8.9) - Adição de 2 novos ovos(segundo mundo), 6 novos pets e correção de bugs")
-st.write("(1.9.0) - Adição de Sistema de login com proteção de dados por senha!")
-st.write("(2.0.0) - [NOVO] Autosave automatizado e Placar Global atualizado 100% em Tempo Real!")
+st.write("(2.0.0) - Adição de Sistema de login com senha e correção de bugs")
+st.write("(2.1.1) - Sistema de salvamento de top global em tempo real, correção dos botões de ban, adicionar pontos e remover pontos(ADM) e correção de bugs")
 
 # --- 🏆 TABELA DE CLASSIFICAÇÃO GLOBAL (ATUALIZADA AUTOMATICAMENTE) ---
 st.markdown("---")
