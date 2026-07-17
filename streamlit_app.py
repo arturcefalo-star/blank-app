@@ -9,26 +9,26 @@ from streamlit_autorefresh import st_autorefresh
 # ⚙️ EDITE AQUI OS NOMES E BÔNUS DOS PETS DO MUNDO 2 (LOGOS 7, 8 E 9)
 # =====================================================================
 # --- OVO CÓSMICO 1 (Mais barato) ---
-NOME_PET_7 = "Goku Instinto"  # Logo 7
-BONUS_PET_7 = 5000
+NOME_PET_7 = "Barbbie"  # Logo 7
+BONUS_PET_7 = 1000000
 
-NOME_PET_8 = "Vegeta Ego"     # Logo 8
-BONUS_PET_8 = 15000
+NOME_PET_8 = "Homem A."     # Logo 8
+BONUS_PET_8 = 2500000
 
-NOME_PET_9 = "Saitama Careca"  # Logo 9
-BONUS_PET_9 = 50000
+NOME_PET_9 = "Tame do cossita"  # Logo 9
+BONUS_PET_9 = 5000000
 
 CUSTO_OVO_MUNDO_2_BARATO = 500000   # Custo do primeiro ovo do Mundo 2
 
 # --- OVO CÓSMICO 2 (Mais caro/raro) ---
-NOME_PET_M2_R1 = "Billz Deus"
-BONUS_PET_M2_R1 = 100000
+NOME_PET_M2_R1 = "Pocoyo"
+BONUS_PET_M2_R1 = 10000000
 
-NOME_PET_M2_R2 = "Whis Anjo"
-BONUS_PET_M2_R2 = 500000
+NOME_PET_M2_R2 = "Bob Construtor"
+BONUS_PET_M2_R2 = 25000000
 
-NOME_PET_M2_R3 = "Zen-Oh"
-BONUS_PET_M2_R3 = 2000000
+NOME_PET_M2_R3 = "Pintinho A."
+BONUS_PET_M2_R3 = 50000000
 
 CUSTO_OVO_MUNDO_2_CARO = 5000000   # Custo do segundo ovo do Mundo 2
 # =====================================================================
