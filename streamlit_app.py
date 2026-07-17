@@ -360,7 +360,7 @@ if st.session_state.mundo_atual == 2:
 
         if st.session_state.pet_slot_m2_1:
             pet = st.session_state.pet_slot_m2_1
-            st.write("**Pet Equipado (Slot 1):**")
+            st.write("**Pet Equipado:**")
             try:
                 st.image(pet["arquivo"], width=167)
             except Exception:
@@ -393,7 +393,7 @@ if st.session_state.mundo_atual == 2:
 
         if st.session_state.pet_slot_m2_2:
             pet = st.session_state.pet_slot_m2_2
-            st.write("**Pet Equipado (Slot 2):**")
+            st.write("**Pet Equipado:**")
             try:
                 st.image(pet["arquivo"], width=120)
             except Exception:
