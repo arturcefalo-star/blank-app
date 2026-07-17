@@ -278,7 +278,6 @@ with col2:
         texto = f"Gerador +{item['qtd']}/s = {item['custo']} Pts"
         desativado = st.session_state.pontos < item['custo'] or loja_em_cooldown
 
-        # Linha corrigida de disabled=disabled para disabled=desativado
         if st.button(texto, key=f"passivo_{item['qtd']}", disabled=desativado, use_container_width=True):
             st.session_state.ultima_compra = time.time()
             if st.session_state.pontos >= item['custo']: 
@@ -293,9 +292,9 @@ st.markdown("---")
 st.subheader("Atualizações:")
 st.write("(1.0.0)(Beta) - Lançamento!!!")
 st.write("(1.4.5) - Sistema de salvamento de jogo, autoclickers e botão de reset")
-st.write("(1.8.0) - Exclusividade de nomes ativada no Top Global (Bloqueio de nomes duplicados)")
+st.write("(1.9.0) - Proteção Anti-Impostor: Só atualiza nomes existentes se você tiver mais pontos que o recorde salvo.")
          
-# --- 7. TABELA DE CLASSIFICAÇÃO COM VALIDAÇÃO DE UNICIDADE ---
+# --- 7. TABELA DE CLASSIFICAÇÃO COM PROTEÇÃO CONTRA ATUALIZAÇÃO INDEVIDA ---
 st.markdown("---")
 st.subheader("Top 5 global:")
 
@@ -314,21 +313,29 @@ if st.button("Enviar Pontuação para o Placar", use_container_width=True, disab
     nome_novo = nome_input.strip()
     nome_antigo = st.session_state.nome_usuario
     
-    # 1. VERIFICAÇÃO DE UNICIDADE: Checa se o nome digitado já existe no arquivo global
-    nome_ja_existe = False
+    # 1. PEGA A PONTUAÇÃO SALVA CASO O NOME JÁ EXISTA NO PLACAR GLOBAL
+    pontos_do_registro_existente = None
     if os.path.exists(LEADERBOARD_FILE):
         try:
             with open(LEADERBOARD_FILE, "r", encoding="utf-8") as f:
                 todos_jogadores = json.load(f)
-            nome_ja_existe = any(j["Jogador"].lower() == nome_novo.lower() for j in todos_jogadores)
+            for j in todos_jogadores:
+                if j["Jogador"].lower() == nome_novo.lower():
+                    pontos_do_registro_existente = j.get("Pontos", j.get("Points", 0))
+                    break
         except Exception:
             pass
 
-    # 2. SE O NOME JÁ EXISTE: Só permite se pertencer à própria pessoa tentando atualizar
-    if nome_ja_existe and nome_novo.lower() != nome_antigo.lower():
-        st.error("❌ Esse nome já está sendo utilizado por outro jogador!")
-    else:
-        # Se for uma troca válida de nome próprio, remove o nome antigo da tabela primeiro
+    # 2. VERIFICAÇÃO DE PERMISSÃO POR PONTOS (Caso não seja o dono atual do nome)
+    if pontos_do_registro_existente is not None and nome_novo.lower() != nome_antigo.lower():
+        # Se você quer usar o nome de outra pessoa, você DEVE ter batido o recorde dela
+        if st.session_state.pontos <= pontos_do_registro_existente:
+            st.error(f"❌ Esse nome pertence a outro jogador que possui {pontos_do_registro_existente} pontos! Você precisa superá-lo para usar esse nome.")
+            nome_novo = None # Bloqueia o avanço do salvamento
+
+    # Se passou nas validações, salva as alterações
+    if nome_novo is not None:
+        # Limpa o seu codinome antigo do ranking global para dar espaço ao novo
         if nome_antigo != "" and nome_novo.lower() != nome_antigo.lower():
             remover_jogador_leaderboard(nome_antigo)
         
@@ -337,7 +344,7 @@ if st.button("Enviar Pontuação para o Placar", use_container_width=True, disab
         
         dados_placar = salvar_no_leaderboard(nome_novo, st.session_state.pontos)
         salvar_jogo()  
-        st.success(f"Placar atualizado com sucesso como: {nome_novo}")
+        st.success(f"Placar atualizado com sucesso! Seu nome registrado é: {nome_novo}")
         time.sleep(0.5)
         st.rerun()
 
