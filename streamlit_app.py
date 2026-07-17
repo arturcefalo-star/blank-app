@@ -274,7 +274,7 @@ if st.session_state.mundo_atual == 2:
     
     st.write("Trilha sonora espacial: on/off ")
     try:
-        st.audio("musica67.mp3") # Pode mudar para outro arquivo se quiser trilhas diferentes por mundo
+        st.audio("musica67.mp3") 
     except Exception:
         pass
 
@@ -288,8 +288,6 @@ if st.session_state.mundo_atual == 2:
     col_status1, col_status2 = st.columns(2)
     col_status1.write(f"**Poder de clique:** {st.session_state.poder_clique * 2} (2X)")
     col_status2.write(f"**Pontos por segundo:** {st.session_state.pontos_por_segundo}")
-
-    st.warning("🪐 As lojas e chocadores de ovos ficaram para trás no Primeiro Mundo. Use os portais de viagem acima para gerenciar seus negócios!")
 
 else:
     # -------------------------------------------------------------
@@ -386,55 +384,75 @@ else:
                 st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada.")
             st.caption(f"{pet['nome']} ({pet['chance']}) | +{pet['bonus']} por clique")
 
-    st.markdown("---")
+st.markdown("---")
 
-    # --- 7. LOJA DE MELHORIAS ---
-    col1, col2 = st.columns(2)
+# --- 7. LOJA DE MELHORIAS (DINÂMICA POR MUNDO) ---
+st.subheader("Loja de Melhorias")
 
+if st.session_state.mundo_atual == 2:
+    st.info("🌌 Loja Quântica: Preços elevados, poder de outro mundo!")
+    melhorias_clique = [
+        {"qtd": 50000, "custo": 15000000}, 
+        {"qtd": 100000, "custo": 50000000},
+        {"qtd": 250000, "custo": 150000000}, 
+        {"qtd": 500000, "custo": 500000000},
+        {"qtd": 1000000, "custo": 1000000000}
+    ]
+    melhorias_passivas = [
+        {"qtd": 50000, "custo": 4000000}, 
+        {"qtd": 100000, "custo": 12000000},
+        {"qtd": 250000, "custo": 40000000}, 
+        {"qtd": 500000, "custo": 120000000},
+        {"qtd": 1000000, "custo": 400000000}
+    ]
+else:
     melhorias_clique = [
         {"qtd": 1, "custo": 100}, {"qtd": 5, "custo": 500}, {"qtd": 10, "custo": 1000},
         {"qtd": 50, "custo": 5000}, {"qtd": 100, "custo": 10000}, {"qtd": 500, "custo": 50000},
         {"qtd": 1000, "custo": 100000}, {"qtd": 2500, "custo": 250000}, {"qtd": 5000, "custo": 500000},
-        {"qtd": 10000, "custo": 1000000},
+        {"qtd": 10000, "custo": 1000000}
     ]
-
     melhorias_passivas = [
         {"qtd": 5, "custo": 200}, {"qtd": 10, "custo": 600}, {"qtd": 20, "custo": 1100},
         {"qtd": 100, "custo": 7500}, {"qtd": 200, "custo": 14500}, {"qtd": 1000, "custo": 72500},
         {"qtd": 2000, "custo": 145000}, {"qtd": 5000, "custo": 360000}, {"qtd": 10000, "custo": 725000},
-        {"qtd": 20000, "custo": 1450000},
+        {"qtd": 20000, "custo": 1450000}
     ]
 
-    with col1:
-        st.subheader("Melhoria Clicker")
-        for item in melhorias_clique:
-            texto = f"Melhoria +{item['qtd']} = {item['custo']} Pts"
+col1, col2 = st.columns(2)
+
+with col1:
+    st.subheader("Melhoria Clicker")
+    with st.container(height=350):
+        for i, item in enumerate(melhorias_clique):
+            texto = f"+{item['qtd']:,} clk | {item['custo']:,} Pts"
             desativado = st.session_state.pontos < item['custo'] or loja_em_cooldown
+            key_btn = f"c_{st.session_state.mundo_atual}_{i}"
 
-            if st.button(texto, key=f"clique_{item['qtd']}", disabled=desativado, use_container_width=True):
+            if st.button(texto, key=key_btn, disabled=desativado, use_container_width=True):
                 st.session_state.ultima_compra = time.time()
-                if st.session_state.pontos >= item['custo']: 
-                    st.session_state.pontos -= item['custo']
-                    st.session_state.poder_base += item['qtd']
-                    atualizar_poder_clique()  
-                    salvar_jogo()
-                    time.sleep(0.5) 
-                    st.rerun()
+                st.session_state.pontos -= item['custo']
+                st.session_state.poder_base += item['qtd']
+                atualizar_poder_clique()  
+                salvar_jogo()
+                time.sleep(0.5)
+                st.rerun()
 
-    with col2:
-        st.subheader("Auto Clickers")
-        for item in melhorias_passivas:
-            texto = f"Gerador +{item['qtd']}/s = {item['custo']} Pts"
+with col2:
+    st.subheader("Auto Clickers")
+    with st.container(height=350):
+        for i, item in enumerate(melhorias_passivas):
+            texto = f"+{item['qtd']:,}/s | {item['custo']:,} Pts"
             desativado = st.session_state.pontos < item['custo'] or loja_em_cooldown
+            key_btn = f"p_{st.session_state.mundo_atual}_{i}"
 
-            if st.button(texto, key=f"passivo_{item['qtd']}", disabled=desativado, use_container_width=True):
+            if st.button(texto, key=key_btn, disabled=desativado, use_container_width=True):
                 st.session_state.ultima_compra = time.time()
-                if st.session_state.pontos >= item['custo']: 
-                    st.session_state.pontos -= item['custo']
-                    st.session_state.pontos_por_segundo += item['qtd']
-                    salvar_jogo()
-                    time.sleep(0.5) 
-                    st.rerun()
+                st.session_state.pontos -= item['custo']
+                st.session_state.pontos_por_segundo += item['qtd']
+                salvar_jogo()
+                time.sleep(0.5)
+                st.rerun()
 
 # --- ABAIXO DOS MUNDOS: COMPONENTES GLOBAIS (RANKING E LOGS) ---
 
