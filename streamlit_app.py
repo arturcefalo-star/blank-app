@@ -54,14 +54,26 @@ def carregar_leaderboard():
     return []
 
 def remover_jogador_leaderboard(nome_antigo):
-    if nome_antigo:
-        leaderboard = carregar_leaderboard()
-        novo_leaderboard = [j for j in leaderboard if j["Jogador"].lower() != nome_antigo.lower()]
-        with open(LEADERBOARD_FILE, "w", encoding="utf-8") as f:
-            json.dump(novo_leaderboard, f, ensure_ascii=False, indent=4)
+    if nome_antigo and os.path.exists(LEADERBOARD_FILE):
+        try:
+            with open(LEADERBOARD_FILE, "r", encoding="utf-8") as f:
+                dados = json.load(f)
+            # Remove todas as instâncias do nome antigo da lista original do arquivo
+            novo_leaderboard = [j for j in dados if j["Jogador"].lower() != nome_antigo.lower()]
+            with open(LEADERBOARD_FILE, "w", encoding="utf-8") as f:
+                json.dump(novo_leaderboard, f, ensure_ascii=False, indent=4)
+        except Exception:
+            pass
 
 def salvar_no_leaderboard(nome, pontos):
-    leaderboard = carregar_leaderboard()
+    # Carrega direto do arquivo bruto para garantir consistência
+    leaderboard = []
+    if os.path.exists(LEADERBOARD_FILE):
+        try:
+            with open(LEADERBOARD_FILE, "r", encoding="utf-8") as f:
+                leaderboard = json.load(f)
+        except Exception:
+            leaderboard = []
     
     jogador_encontrado = False
     for jogador in leaderboard:
@@ -85,6 +97,7 @@ dados_salvos = carregar_jogo()
 if dados_salvos is None:
     dados_salvos = {}
 
+# Uso estrito de .get() com fallback seguro para evitar erros de atributo
 if "pontos" not in st.session_state:
     st.session_state.pontos = dados_salvos.get("pontos", 0)
 if "poder_base" not in st.session_state:
@@ -284,12 +297,8 @@ with col2:
 st.markdown("---")
 st.subheader("Atualizações:")
 st.write("(1.0.0)(Beta) - Lançamento!!!")
-st.write("(1.0.1) - Correção de bugs")
-st.write("(1.1.2) - Adição dos Ovos, correção de bugs e preços balanceados")
-st.write("(1.2.3) - Adição de novos pets e ovos e o log de atualizações")
-st.write("(1.3.4) - Interface reformulada e correção de bugs")
-st.write("(1.4.5) - Sistema de salvamento de jogo, adição de novos autoclickers, adição de um botão de reset e correção de bugs")
-st.write("(1.5.5) - Adição do top global (Coloque seu nome na barrinha e clique em enviar e clique novamente para atualizar)")
+st.write("(1.4.5) - Sistema de salvamento de jogo, autoclickers e botão de reset")
+st.write("(1.7.5) - Correção total no salvamento e substituição limpa de codinome no Top Global")
          
 # --- 7. TABELA DE CLASSIFICAÇÃO COM TROCA DE NOME REAL ---
 st.markdown("---")
@@ -298,10 +307,10 @@ st.subheader("Top 5 global:")
 # Busca dados iniciais
 dados_placar = carregar_leaderboard()
 
-# Carrega o nome atualizado do estado de sessão
+# Carrega o nome atualizado do estado de sessão com segurança absoluta
 nome_input = st.text_input(
     "Digite seu nome para salvar seu recorde:", 
-    value=st.session_state.nome_usuario, 
+    value=st.session_state.get("nome_usuario", ""), 
     max_chars=15, 
     key="nome_leaderboard_widget"
 )
@@ -312,18 +321,18 @@ if st.button("Enviar Pontuação para o Placar", use_container_width=True, disab
     nome_novo = nome_input.strip()
     nome_antigo = st.session_state.nome_usuario
     
-    # Se ele tinha um nome antigo diferente registrado, remove o antigo da tabela antes
+    # Se ele tinha um nome antigo diferente registrado, limpa o arquivo primeiro
     if nome_antigo != "" and nome_novo.lower() != nome_antigo.lower():
         remover_jogador_leaderboard(nome_antigo)
     
-    # Define o novo nome como o atual do jogador
+    # Sobrescreve o estado local com o novo nome selecionado
     st.session_state.nome_usuario = nome_novo
     st.session_state.ja_enviou = True  
     
     # Atualiza ou adiciona o novo nome com a pontuação
     dados_placar = salvar_no_leaderboard(nome_novo, st.session_state.pontos)
     salvar_jogo()  
-    st.success(f"Placar atualizado! Nome definido como: {nome_novo}")
+    st.success(f"Placar atualizado! Seu nome agora é: {nome_novo}")
     time.sleep(0.2)
     st.rerun()
 
