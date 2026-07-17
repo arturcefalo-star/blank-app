@@ -40,7 +40,7 @@ if "pontos" not in st.session_state:
 if "poder_base" not in st.session_state:
     st.session_state.poder_base = dados_salvos.get("poder_base", 1) if dados_salvos else 1
 if "poder_clique" not in st.session_state:
-    st.session_state.poder_clique = 1  # Será recalculado logo abaixo
+    st.session_state.poder_clique = 1  
 if "pontos_por_segundo" not in st.session_state:
     st.session_state.pontos_por_segundo = dados_salvos.get("pontos_por_segundo", 0) if dados_salvos else 0
 if "ultimo_tick" not in st.session_state:
@@ -54,7 +54,7 @@ if "pet_slot_2" not in st.session_state:
 if "ovo1_bloqueado" not in st.session_state:
     st.session_state.ovo1_bloqueado = dados_salvos.get("ovo1_bloqueado", False) if dados_salvos else False
 
-# Função para recalcular o poder de clique com base no poder base + pets equipados
+# Recalcular o poder de clique
 def atualizar_poder_clique():
     bonus_total = 0
     if st.session_state.pet_slot_1:
@@ -63,7 +63,6 @@ def atualizar_poder_clique():
         bonus_total += st.session_state.pet_slot_2["bonus"]
     st.session_state.poder_clique = st.session_state.poder_base + bonus_total
 
-# Garante que o poder de clique comece atualizado ao carregar o jogo
 atualizar_poder_clique()
 
 # 2. SISTEMA DE REFRESH PASSIVO (AUTO-CLICKER)
@@ -77,7 +76,7 @@ if tempo_passado >= 1.0:
     ciclos = int(tempo_passado)
     st.session_state.pontos += st.session_state.pontos_por_segundo * ciclos
     st.session_state.ultimo_tick = agora - (tempo_passado - ciclos)
-    salvar_jogo()  # Salva os pontos gerados passivamente
+    salvar_jogo()
 
 # 3. INTERFACE PRINCIPAL
 st.title("Clicker Game")
@@ -91,7 +90,7 @@ except Exception:
 # Botão principal de clique
 if st.button("            Click Here          ", use_container_width=True):
     st.session_state.pontos += st.session_state.poder_clique
-    salvar_jogo()  # Salva sempre que o jogador clica
+    salvar_jogo()
 
 # Exibição de Status
 st.metric(label="Pontos Atuais", value=st.session_state.pontos)
@@ -115,17 +114,20 @@ with col3:
     desativar_ovo1 = st.session_state.ovo1_bloqueado or st.session_state.pontos < custo_ovo1
     
     if st.button(f"Abrir Ovo = {custo_ovo1} Pontos", disabled=desativar_ovo1, key="botao_ovo1"):
-        st.session_state.pontos -= custo_ovo1
-        sorteado_ovo1 = random.choices(
-           [{"nome": "Siruriru", "arquivo": "logo3.png", "bonus": 1, "chance": "50%"}, 
-            {"nome": "Peppa Pig", "arquivo": "logo2.png", "bonus": 5, "chance": "35%"},
-            {"nome": "Manoel G", "arquivo": "logo1.png", "bonus": 10, "chance": "15%"}],
-           weights=[50, 35, 15], k=1
-        )[0]
-        st.session_state.pet_slot_1 = sorteado_ovo1
-        atualizar_poder_clique()
-        salvar_jogo()  # Salva o novo pet obtido
-        st.rerun()
+        # PROTEÇÃO ANTI-SPAM INTERNA: Verifica novamente antes de cobrar
+        if st.session_state.pontos >= custo_ovo1:
+            st.session_state.pontos -= custo_ovo1
+            sorteado_ovo1 = random.choices(
+               [{"nome": "Siruriru", "arquivo": "logo3.png", "bonus": 1, "chance": "50%"}, 
+                {"nome": "Peppa Pig", "arquivo": "logo2.png", "bonus": 5, "chance": "35%"},
+                {"nome": "Manoel G", "arquivo": "logo1.png", "bonus": 10, "chance": "15%"}],
+               weights=[50, 35, 15], k=1
+            )[0]
+            st.session_state.pet_slot_1 = sorteado_ovo1
+            atualizar_poder_clique()
+            salvar_jogo()
+            time.sleep(0.4) # Pequeno delay de processamento
+            st.rerun()
 
     if st.session_state.pet_slot_1:
         pet = st.session_state.pet_slot_1
@@ -133,7 +135,7 @@ with col3:
         try:
             st.image(pet["arquivo"], width=150)
         except Exception:
-            st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada na pasta do projeto.")
+            st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada.")
         st.caption(f"{pet['nome']} ({pet['chance']}) | +{pet['bonus']} por clique")
 
 with col4:
@@ -146,19 +148,21 @@ with col4:
     desativar_ovo2 = st.session_state.pontos < custo_ovo2
     
     if st.button(f"Abrir Ovo = {custo_ovo2} Pontos", disabled=desativar_ovo2, key="botao_ovo2"):
-        st.session_state.pontos -= custo_ovo2
-        st.session_state.ovo1_bloqueado = True  
-        
-        sorteado_ovo2 = random.choices(
-           [{"nome": "Dora A.", "arquivo": "logo4.png", "bonus": 10, "chance": "50%"}, 
-            {"nome": "Sonic", "arquivo": "logo5.png", "bonus": 50, "chance": "35%"},
-            {"nome": "Michael J.", "arquivo": "logo6.png", "bonus": 100, "chance": "15%"}],
-           weights=[50, 35, 15], k=1
-        )[0]
-        st.session_state.pet_slot_2 = sorteado_ovo2
-        atualizar_poder_clique()
-        salvar_jogo()  # Salva o novo pet raro obtido
-        st.rerun()
+        if st.session_state.pontos >= custo_ovo2:
+            st.session_state.pontos -= custo_ovo2
+            st.session_state.ovo1_bloqueado = True  
+            
+            sorteado_ovo2 = random.choices(
+               [{"nome": "Dora A.", "arquivo": "logo4.png", "bonus": 10, "chance": "50%"}, 
+                {"nome": "Sonic", "arquivo": "logo5.png", "bonus": 50, "chance": "35%"},
+                {"nome": "Michael J.", "arquivo": "logo6.png", "bonus": 100, "chance": "15%"}],
+               weights=[50, 35, 15], k=1
+            )[0]
+            st.session_state.pet_slot_2 = sorteado_ovo2
+            atualizar_poder_clique()
+            salvar_jogo()
+            time.sleep(0.4)
+            st.rerun()
 
     if st.session_state.pet_slot_2:
         pet = st.session_state.pet_slot_2
@@ -166,7 +170,7 @@ with col4:
         try:
             st.image(pet["arquivo"], width=150)
         except Exception:
-            st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada na pasta do projeto.")
+            st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada.")
         st.caption(f"{pet['nome']} ({pet['chance']}) | +{pet['bonus']} por clique")
 
 st.markdown("---")
@@ -184,8 +188,6 @@ melhorias_clique = [
 melhorias_passivas = [
     {"qtd": 5, "custo": 200}, {"qtd": 10, "custo": 600}, {"qtd": 20, "custo": 1100},
     {"qtd": 100, "custo": 7500}, {"qtd": 200, "custo": 14500}, {"qtd": 1000, "custo": 72500},
-    {"qtd": 2000, "custo": 145000}, {"qtd": 5000, "custo": 360000}, {"qtd": 10000, "custo": 720000},
-    {"qtd": 20000, "custo": 1440000},
 ]
 
 with col1:
@@ -195,11 +197,13 @@ with col1:
         desativado = st.session_state.pontos < item['custo']
 
         if st.button(texto, key=f"clique_{item['qtd']}", disabled=desativado, use_container_width=True):
-            st.session_state.pontos -= item['custo']
-            st.session_state.poder_base += item['qtd']
-            atualizar_poder_clique()  
-            salvar_jogo()  # Salva a melhoria comprada
-            st.rerun()
+            if st.session_state.pontos >= item['custo']: # Dupla checagem de segurança
+                st.session_state.pontos -= item['custo']
+                st.session_state.poder_base += item['qtd']
+                atualizar_poder_clique()  
+                salvar_jogo()
+                time.sleep(0.3) # Delay anti-spam
+                st.rerun()
 
 with col2:
     st.subheader("Auto Clickers")
@@ -208,17 +212,14 @@ with col2:
         desativado = st.session_state.pontos < item['custo']
 
         if st.button(texto, key=f"passivo_{item['qtd']}", disabled=desativado, use_container_width=True):
-            st.session_state.pontos -= item['custo']
-            st.session_state.pontos_por_segundo += item['qtd']
-            salvar_jogo()  # Salva o gerador passivo comprado
-            st.rerun()
+            if st.session_state.pontos >= item['custo']: # Dupla checagem de segurança
+                st.session_state.pontos -= item['custo']
+                st.session_state.pontos_por_segundo += item['qtd']
+                salvar_jogo()
+                time.sleep(0.3) # Delay anti-spam
+                st.rerun()
 
 # 6. LOG DE ATUALIZAÇÕES
 st.markdown("---")
 st.subheader("Atualizações:")
-st.write("(1.0.0)(Beta) - Lançamento!!!")
-st.write("(1.0.1) - Correção de bugs")
-st.write("(1.1.2) - Adição dos Ovos, correção de bugs e preços balanceados")
-st.write("(1.2.3) - Adição de novos pets e ovos e o log de atualizações")
-st.write("(1.3.4) - Interface reformulada e correção de bugs")
-st.write("(1.4.5) - Sistema de salvamento de jogo e adição de novos autoclickers")
+st.write("(1.4.1) - Proteção total contra cliques duplos (Anti-Spam) e saldo negativo!")
