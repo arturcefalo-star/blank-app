@@ -58,7 +58,6 @@ def remover_jogador_leaderboard(nome_antigo):
         try:
             with open(LEADERBOARD_FILE, "r", encoding="utf-8") as f:
                 dados = json.load(f)
-            # Remove todas as instâncias do nome antigo da lista original do arquivo
             novo_leaderboard = [j for j in dados if j["Jogador"].lower() != nome_antigo.lower()]
             with open(LEADERBOARD_FILE, "w", encoding="utf-8") as f:
                 json.dump(novo_leaderboard, f, ensure_ascii=False, indent=4)
@@ -66,7 +65,6 @@ def remover_jogador_leaderboard(nome_antigo):
             pass
 
 def salvar_no_leaderboard(nome, pontos):
-    # Carrega direto do arquivo bruto para garantir consistência
     leaderboard = []
     if os.path.exists(LEADERBOARD_FILE):
         try:
@@ -97,7 +95,6 @@ dados_salvos = carregar_jogo()
 if dados_salvos is None:
     dados_salvos = {}
 
-# Uso estrito de .get() com fallback seguro para evitar erros de atributo
 if "pontos" not in st.session_state:
     st.session_state.pontos = dados_salvos.get("pontos", 0)
 if "poder_base" not in st.session_state:
@@ -113,19 +110,16 @@ if "ja_enviou" not in st.session_state:
 if "nome_usuario" not in st.session_state:
     st.session_state.nome_usuario = dados_salvos.get("nome_usuario", "")
 
-# SISTEMA DE DELAY E COOLDOWN
 if "ultima_compra" not in st.session_state:
     st.session_state.ultima_compra = 0.0
 if "confirmando_reset" not in st.session_state:
     st.session_state.confirmando_reset = False
 
-# PETS SLOTS
 if "pet_slot_1" not in st.session_state:
     st.session_state.pet_slot_1 = dados_salvos.get("pet_slot_1", None)
 if "pet_slot_2" not in st.session_state:
     st.session_state.pet_slot_2 = dados_salvos.get("pet_slot_2", None)
 
-# Recalcular o poder de clique
 def atualizar_poder_clique():
     bonus_total = 0
     if st.session_state.pet_slot_1:
@@ -284,7 +278,7 @@ with col2:
         texto = f"Gerador +{item['qtd']}/s = {item['custo']} Pts"
         desativado = st.session_state.pontos < item['custo'] or loja_em_cooldown
 
-        if st.button(texto, key=f"passivo_{item['qtd']}", disabled=desativado, use_container_width=True):
+        if st.button(texto, key=f"passivo_{item['qtd']}", disabled=disabled, use_container_width=True):
             st.session_state.ultima_compra = time.time()
             if st.session_state.pontos >= item['custo']: 
                 st.session_state.pontos -= item['custo']
@@ -298,16 +292,14 @@ st.markdown("---")
 st.subheader("Atualizações:")
 st.write("(1.0.0)(Beta) - Lançamento!!!")
 st.write("(1.4.5) - Sistema de salvamento de jogo, autoclickers e botão de reset")
-st.write("(1.7.5) - Correção total no salvamento e substituição limpa de codinome no Top Global")
+st.write("(1.8.0) - Exclusividade de nomes ativada no Top Global (Bloqueio de nomes duplicados)")
          
-# --- 7. TABELA DE CLASSIFICAÇÃO COM TROCA DE NOME REAL ---
+# --- 7. TABELA DE CLASSIFICAÇÃO COM VALIDAÇÃO DE UNICIDADE ---
 st.markdown("---")
 st.subheader("Top 5 global:")
 
-# Busca dados iniciais
 dados_placar = carregar_leaderboard()
 
-# Carrega o nome atualizado do estado de sessão com segurança absoluta
 nome_input = st.text_input(
     "Digite seu nome para salvar seu recorde:", 
     value=st.session_state.get("nome_usuario", ""), 
@@ -321,20 +313,32 @@ if st.button("Enviar Pontuação para o Placar", use_container_width=True, disab
     nome_novo = nome_input.strip()
     nome_antigo = st.session_state.nome_usuario
     
-    # Se ele tinha um nome antigo diferente registrado, limpa o arquivo primeiro
-    if nome_antigo != "" and nome_novo.lower() != nome_antigo.lower():
-        remover_jogador_leaderboard(nome_antigo)
-    
-    # Sobrescreve o estado local com o novo nome selecionado
-    st.session_state.nome_usuario = nome_novo
-    st.session_state.ja_enviou = True  
-    
-    # Atualiza ou adiciona o novo nome com a pontuação
-    dados_placar = salvar_no_leaderboard(nome_novo, st.session_state.pontos)
-    salvar_jogo()  
-    st.success(f"Placar atualizado! Seu nome agora é: {nome_novo}")
-    time.sleep(0.2)
-    st.rerun()
+    # 1. VERIFICAÇÃO DE UNICIDADE: Checa se o nome digitado já existe no arquivo global
+    nome_ja_existe = False
+    if os.path.exists(LEADERBOARD_FILE):
+        try:
+            with open(LEADERBOARD_FILE, "r", encoding="utf-8") as f:
+                todos_jogadores = json.load(f)
+            nome_ja_existe = any(j["Jogador"].lower() == nome_novo.lower() for j in todos_jogadores)
+        except Exception:
+            pass
+
+    # 2. SE O NOME JÁ EXISTE: Só permite se pertencer à própria pessoa tentando atualizar
+    if nome_ja_existe and nome_novo.lower() != nome_antigo.lower():
+        st.error("❌ Esse nome já está sendo utilizado por outro jogador!")
+    else:
+        # Se for uma troca válida de nome próprio, remove o nome antigo da tabela primeiro
+        if nome_antigo != "" and nome_novo.lower() != nome_antigo.lower():
+            remover_jogador_leaderboard(nome_antigo)
+        
+        st.session_state.nome_usuario = nome_novo
+        st.session_state.ja_enviou = True  
+        
+        dados_placar = salvar_no_leaderboard(nome_novo, st.session_state.pontos)
+        salvar_jogo()  
+        st.success(f"Placar atualizado com sucesso como: {nome_novo}")
+        time.sleep(0.5)
+        st.rerun()
 
 if dados_placar:
     st.table(dados_placar)
