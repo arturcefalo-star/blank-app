@@ -264,22 +264,20 @@ st.write("(1.4.9) - Adicionado o Placar de Líderes (Tabela de Classificação)"
 st.markdown("---")
 st.subheader("🏆 Tabela de Classificação (Top 5)")
 
-# Enviar pontuação atual para o placar
-with st.get_container():
-    nome_jogador = st.text_input("Digite seu nome para salvar seu recorde:", max_chars=15, key="nome_leaderboard")
-    if st.button("Enviar Pontuação para o Placar", use_container_width=True):
-        if nome_jogador.strip() != "":
-            salvar_no_leaderboard(nome_jogador.strip(), st.session_state.pontos)
-            st.success(f"Recorde de {st.session_state.pontos} pontos enviado!")
-            time.sleep(0.5)
-            st.rerun()
-        else:
-            st.error("Por favor, digite um nome antes de enviar.")
+# Enviar pontuação atual para o placar (Corrigido)
+nome_jogador = st.text_input("Digite seu nome para salvar seu recorde:", max_chars=15, key="nome_leaderboard")
+if st.button("Enviar Pontuação para o Placar", use_container_width=True):
+    if nome_jogador.strip() != "":
+        salvar_no_leaderboard(nome_jogador.strip(), st.session_state.pontos)
+        st.success(f"Recorde de {st.session_state.pontos} pontos enviado!")
+        time.sleep(0.5)
+        st.rerun()
+    else:
+        st.error("Por favor, digite um nome antes de enviar.")
 
 # Exibir a tabela
 dados_placar = carregar_leaderboard()
 if dados_placar:
-    # Mostra os dados formatados em uma tabela bonita do Streamlit
     st.table(dados_placar)
 else:
     st.info("O placar está vazio. Seja o primeiro a registrar um recorde!")
