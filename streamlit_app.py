@@ -32,31 +32,22 @@ def carregar_jogo():
             return None
     return None
 
-# Funções do Placar de Líderes (Leaderboard) - AGORA COM LIMPEZA AUTOMÁTICA
+# Funções do Placar de Líderes (Leaderboard) com limpeza automática
 def carregar_leaderboard():
     if os.path.exists(LEADERBOARD_FILE):
         try:
             with open(LEADERBOARD_FILE, "r", encoding="utf-8") as f:
                 dados = json.load(f)
             
-            # --- SISTEMA ANTIDUPLICIDADE AUTOMÁTICO ---
             usuarios_unicos = {}
             for jogador in dados:
                 nome = jogador["Jogador"]
-                # Pega a chave correta (caso mude de maiúscula/minúscula)
                 pontos = jogador.get("Pontos", jogador.get("Points", 0))
                 
-                # Se o jogador não estiver no dicionário ou se essa pontuação for maior, guarda ela
                 if nome.lower() not in usuarios_unicos or pontos > usuarios_unicos[nome.lower()]["Pontos"]:
                     usuarios_unicos[nome.lower()] = {"Jogador": nome, "Pontos": pontos}
             
-            # Reconverte o dicionário limpo em uma lista ordenada
             leaderboard_limpo = sorted(usuarios_unicos.values(), key=lambda x: x["Pontos"], reverse=True)[:5]
-            
-            # Salva de volta o arquivo já corrigido e sem repetições
-            with open(LEADERBOARD_FILE, "w", encoding="utf-8") as f:
-                json.dump(leaderboard_limpo, f, ensure_ascii=False, indent=4)
-                
             return leaderboard_limpo
         except Exception:
             return []
@@ -291,14 +282,11 @@ st.write("(1.1.2) - Adição dos Ovos, correção de bugs e preços balanceados"
 st.write("(1.2.3) - Adição de novos pets e ovos e o log de atualizações")
 st.write("(1.3.4) - Interface reformulada e correção de bugs")
 st.write("(1.4.5) - Sistema de salvamento de jogo, adição de novos autoclickers, adição de um botão de reset e correção de bugs")
-st.write("(1.5.5) - Adicionado sistema de filtragem de nomes antigos duplicados no placar")
+st.write("(1.5.8) - Placar de classificação atualizando instantaneamente em tempo real")
 
 # 7. TABELA DE CLASSIFICAÇÃO (LEADERBOARD)
 st.markdown("---")
 st.subheader("🏆 Tabela de Classificação (Top 5)")
-
-# Carrega os dados (e limpa automaticamente os nomes repetidos se existirem)
-dados_placar = carregar_leaderboard()
 
 nome_jogador = st.text_input(
     "Digite seu nome para salvar seu recorde:", 
@@ -314,13 +302,16 @@ if st.button("Enviar Pontuação para o Placar", use_container_width=True, disab
     salvar_no_leaderboard(nome_jogador.strip(), st.session_state.pontos)
     salvar_jogo()  
     st.success(f"Recorde de {st.session_state.pontos} pontos enviado com sucesso!")
-    time.sleep(0.5)
-    st.rerun()
+    time.sleep(0.2)
+    st.rerun()  # Força o Streamlit a redesenhar a tela inteira imediatamente com os dados novos
 
 if st.session_state.ja_enviou:
     st.info("🔒 Você já enviou sua pontuação nesta rodada. Caso queira mandar uma nova pontuação mais alta, você precisará resetar o jogo.")
 
-# Exibir a tabela corrigida
+# Forçamos o carregamento aqui para garantir que ele pegue os dados pós-clique na mesma execução
+dados_placar = carregar_leaderboard()
+
+# Exibir a tabela corrigida e imediata
 if dados_placar:
     st.table(dados_placar)
 else:
@@ -360,4 +351,4 @@ else:
         if st.button("NÃO, voltar ao jogo", use_container_width=True):
             st.session_state.confirmando_reset = False
             st.rerun()
-                
+    
