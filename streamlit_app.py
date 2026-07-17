@@ -43,8 +43,23 @@ def carregar_leaderboard():
 
 def salvar_no_leaderboard(nome, pontos):
     leaderboard = carregar_leaderboard()
-    # Adiciona o novo recorde
-    leaderboard.append({"Jogador": nome, "Pontos": pontos})
+    
+    # Procura se o jogador já existe na tabela (ignora maiúsculas/minúsculas)
+    jogador_encontrado = False
+    for jogador in leaderboard:
+        if jogador["Jogador"].lower() == nome.lower():
+            jogador_encontrado = True
+            # Só atualiza se a nova pontuação for maior que o recorde antigo
+            if pontos > jogador["Pontos"]:
+                jogador["Pontos"] = pontos
+                # Atualiza também a grafia do nome caso o jogador tenha digitado diferente
+                jogador["Jogador"] = nome 
+            break
+            
+    # Se o jogador não existia no placar, adiciona ele como novo
+    if not jogador_encontrado:
+        leaderboard.append({"Jogador": nome, "Pontos": pontos})
+        
     # Ordena do maior para o menor e pega os 5 melhores
     leaderboard = sorted(leaderboard, key=lambda x: x["Pontos"], reverse=True)[:5]
     with open(LEADERBOARD_FILE, "w", encoding="utf-8") as f:
@@ -258,13 +273,13 @@ st.write("(1.1.2) - Adição dos Ovos, correção de bugs e preços balanceados"
 st.write("(1.2.3) - Adição de novos pets e ovos e o log de atualizações")
 st.write("(1.3.4) - Interface reformulada e correção de bugs")
 st.write("(1.4.5) - Sistema de salvamento de jogo, adição de novos autoclickers, adição de um botão de reset e correção de bugs")
-st.write("(1.4.9) - Adicionado o Placar de Líderes (Tabela de Classificação)")
+st.write("(1.5.0) - Tabela de classificação inteligente (Evita repetição de nomes e atualiza os recordes)")
 
-# 7. NOVO: TABELA DE CLASSIFICAÇÃO (LEADERBOARD)
+# 7. TABELA DE CLASSIFICAÇÃO (LEADERBOARD)
 st.markdown("---")
 st.subheader("🏆 Tabela de Classificação (Top 5)")
 
-# Enviar pontuação atual para o placar (Corrigido)
+# Enviar pontuação atual para o placar
 nome_jogador = st.text_input("Digite seu nome para salvar seu recorde:", max_chars=15, key="nome_leaderboard")
 if st.button("Enviar Pontuação para o Placar", use_container_width=True):
     if nome_jogador.strip() != "":
@@ -297,6 +312,8 @@ else:
         if st.button("SIM, deletar tudo", type="primary", use_container_width=True):
             if os.path.exists(SAVE_FILE):
                 os.remove(SAVE_FILE)
+            if os.path.exists(LEADERBOARD_FILE):
+                os.remove(LEADERBOARD_FILE)
             st.session_state.pontos = 0
             st.session_state.poder_base = 1
             st.session_state.pontos_por_segundo = 0
