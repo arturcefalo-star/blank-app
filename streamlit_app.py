@@ -6,7 +6,7 @@ import os
 from streamlit_autorefresh import st_autorefresh
 
 # --- CONFIGURAÇÕES DE ADMIN ---
-SENHA_ADMIN = "XxIIlIIxX"  # ⚠️ ALTERE PARA A SUA SENHA SECRETA!
+SENHA_ADMIN = "minhasenha123"  # ⚠️ ALTERE PARA A SUA SENHA SECRETA!
 
 # Arquivos de salvamento
 SAVE_FILE = "savegame.json"
@@ -135,7 +135,22 @@ def atualizar_poder_clique():
 
 atualizar_poder_clique()
 
-# --- 2. SISTEMA DE REFRESH PASSIVO (AUTO-CLICKER) ---
+# --- 2. SINCRONIZAÇÃO AUTOMÁTICA DE PONTOS RECEBIDOS PELO ADMIN ---
+if st.session_state.nome_usuario != "" and os.path.exists(LEADERBOARD_FILE):
+    try:
+        with open(LEADERBOARD_FILE, "r", encoding="utf-8") as f:
+            tabela_global = json.load(f)
+        for j in tabela_global:
+            if j["Jogador"].lower() == st.session_state.nome_usuario.lower():
+                # Se o admin deu pontos no leaderboard e o valor global for maior que o local, o jogo atualiza localmente
+                if j["Pontos"] > st.session_state.pontos:
+                    st.session_state.pontos = j["Pontos"]
+                    salvar_jogo()
+                break
+    except Exception:
+        pass
+
+# --- 3. SISTEMA DE REFRESH PASSIVO (AUTO-CLICKER) ---
 if st.session_state.pontos_por_segundo > 0:
     st_autorefresh(interval=900, key="autoclicker")
 
@@ -150,7 +165,7 @@ if tempo_passado >= 1.0:
 
 loja_em_cooldown = (time.time() - st.session_state.ultima_compra) < 0.5
 
-# --- 3. BARRA LATERAL: PAINEL DO ADMINISTRADOR ---
+# --- 4. BARRA LATERAL: PAINEL DO ADMINISTRADOR ---
 with st.sidebar:
     st.header("⚙️ Painel do Criador")
     if st.checkbox("Ativar Modo Administrador"):
@@ -160,7 +175,6 @@ with st.sidebar:
             st.success("Acesso liberado, Mestre!")
             st.subheader("Gerenciar Placar Global")
             
-            # Puxa tudo do leaderboard (sem limitar ao top 5 para o admin ver todos)
             placar_completo = []
             if os.path.exists(LEADERBOARD_FILE):
                 try:
@@ -175,13 +189,13 @@ with st.sidebar:
                     col_adm1.write(f"**{jogador['Jogador']}**: {jogador['Pontos']} pts")
                     
                     # Botão para deletar jogador
-                    if col_adm2.button("Remover", key=f"del_{i}", help="Deletar este jogador"):
+                    if col_adm2.button("🗑️", key=f"del_{i}", help="Deletar este jogador"):
                         placar_completo.pop(i)
                         salvar_leaderboard_completo(placar_completo)
                         st.rerun()
                     
                     # Botão para somar pontos (+5000)
-                    if col_adm3.button("Add Pontos", key=f"add_{i}", help="Adicionar +5000 pontos"):
+                    if col_adm3.button("➕", key=f"add_{i}", help="Adicionar +5000 pontos"):
                         jogador['Pontos'] += 5000
                         salvar_leaderboard_completo(placar_completo)
                         st.rerun()
@@ -190,7 +204,7 @@ with st.sidebar:
         elif senha_input != "":
             st.error("Senha incorreta!")
 
-# --- 4. INTERFACE PRINCIPAL DO JOGO ---
+# --- 5. INTERFACE PRINCIPAL DO JOGO ---
 st.title("Clicker Game")
 
 st.write("Trilha sonora: on/off ")
@@ -210,7 +224,7 @@ col_status2.write(f"**Pontos por segundo:** {st.session_state.pontos_por_segundo
 
 st.markdown("---")
 
-# --- 5. SISTEMA DE OVOS (PETS) ---
+# --- 6. SISTEMA DE OVOS (PETS) ---
 st.subheader("Comprar Ovos:")
 col3, col4 = st.columns(2)
 
@@ -284,7 +298,7 @@ with col4:
 
 st.markdown("---")
 
-# --- 6. LOJA DE MELHORIAS ---
+# --- 7. LOJA DE MELHORIAS ---
 col1, col2 = st.columns(2)
 
 melhorias_clique = [
@@ -332,14 +346,14 @@ with col2:
                 time.sleep(0.5) 
                 st.rerun()
 
-# --- 7. LOG DE ATUALIZAÇÕES ---
+# --- 8. LOG DE ATUALIZAÇÕES ---
 st.markdown("---")
 st.subheader("Atualizações:")
 st.write("(1.0.0)(Beta) - Lançamento!!!")
 st.write("(1.4.5) - Salvamento de jogo, autoclickers e botão de reset")
-st.write("(2.0.0) - Proteção Anti-Impostor no Placar Global & Painel do Administrador (Sidebar) ativo!")
+st.write("(2.1.0) - Sincronização em Tempo Real: Pontos adicionados pelo Admin agora vão direto para a carteira do jogador!")
          
-# --- 8. TABELA DE CLASSIFICAÇÃO COM VALIDAÇÃO DE UNICIDADE ---
+# --- 9. TABELA DE CLASSIFICAÇÃO COM VALIDAÇÃO DE UNICIDADE ---
 st.markdown("---")
 st.subheader("Top 5 global:")
 
@@ -358,7 +372,6 @@ if st.button("Enviar Pontuação para o Placar", use_container_width=True, disab
     nome_novo = nome_input.strip()
     nome_antigo = st.session_state.nome_usuario
     
-    # 1. Pega os pontos salvos daquele nome, caso ele já exista no leaderboard global
     pontos_do_registro_existente = None
     if os.path.exists(LEADERBOARD_FILE):
         try:
@@ -371,15 +384,12 @@ if st.button("Enviar Pontuação para o Placar", use_container_width=True, disab
         except Exception:
             pass
 
-    # 2. SISTEMA ANTI-IMPOSTOR: Se o nome existe e não é o seu atual, exige pontuação maior
     if pontos_do_registro_existente is not None and nome_novo.lower() != nome_antigo.lower():
         if st.session_state.pontos <= pontos_do_registro_existente:
             st.error(f"❌ Esse nome pertence a outro jogador que possui {pontos_do_registro_existente} pontos! Supere o recorde dele para poder usar este nome.")
-            nome_novo = None # Trava o salvamento
+            nome_novo = None 
 
-    # Se a validação passou, prossegue com a atualização
     if nome_novo is not None:
-        # Apaga o codinome antigo para evitar poluição de dados replicados do mesmo jogador
         if nome_antigo != "" and nome_novo.lower() != nome_antigo.lower():
             remover_jogador_leaderboard(nome_antigo)
         
@@ -388,7 +398,7 @@ if st.button("Enviar Pontuação para o Placar", use_container_width=True, disab
         
         dados_placar = salvar_no_leaderboard(nome_novo, st.session_state.pontos)
         salvar_jogo()  
-        st.success(f"Placar atualizado com sucesso! Seu nome registrado é: {nome_novo}")
+        st.success(f"Placar updated! Seu nome registrado é: {nome_novo}")
         time.sleep(0.5)
         st.rerun()
 
@@ -397,7 +407,7 @@ if dados_placar:
 else:
     st.info("O placar está vazio. Seja o primeiro a registrar um recorde!")
 
-# --- 9. SISTEMA DE RESET DE JOGO ---
+# --- 10. SISTEMA DE RESET DE JOGO ---
 st.markdown("---")
 if not st.session_state.confirmando_reset:
     if st.button("Resetar Jogo", use_container_width=True):
