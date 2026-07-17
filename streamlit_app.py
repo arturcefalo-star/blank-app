@@ -142,8 +142,8 @@ if st.session_state.nome_usuario != "" and os.path.exists(LEADERBOARD_FILE):
             tabela_global = json.load(f)
         for j in tabela_global:
             if j["Jogador"].lower() == st.session_state.nome_usuario.lower():
-                # Se o admin deu pontos no leaderboard e o valor global for maior que o local, o jogo atualiza localmente
-                if j["Pontos"] > st.session_state.pontos:
+                # Se o admin mexeu nos pontos e o valor global for diferente do local, o jogo atualiza localmente
+                if j["Pontos"] != st.session_state.pontos:
                     st.session_state.pontos = j["Pontos"]
                     salvar_jogo()
                 break
@@ -173,6 +173,11 @@ with st.sidebar:
         
         if len(senha_input) > 0 and senha_input == SENHA_ADMIN:
             st.success("Acesso liberado, Mestre!")
+            
+            st.subheader("Modificador de Pontos")
+            # Campo dinâmico para o admin escolher a quantia de pontos por clique
+            qtd_pontos = st.number_input("Quantidade de pontos para Add/Rem:", min_value=1, value=1000, step=100)
+            
             st.subheader("Gerenciar Placar Global")
             
             placar_completo = []
@@ -185,7 +190,6 @@ with st.sidebar:
 
             if placar_completo:
                 for i, jogador in enumerate(placar_completo):
-                    # Proporções ajustadas para comportar perfeitamente os 3 botões em linha
                     col_adm1, col_adm2, col_adm3, col_adm4 = st.columns([2, 1, 1, 1])
                     col_adm1.write(f"**{jogador['Jogador']}**: {jogador['Pontos']} pts")
                     
@@ -195,16 +199,15 @@ with st.sidebar:
                         salvar_leaderboard_completo(placar_completo)
                         st.rerun()
                     
-                    # Botão para somar pontos (+5000)
-                    if col_adm3.button("Add", key=f"add_{i}", help="Adicionar +5000 pontos"):
-                        jogador['Pontos'] += 5000
+                    # Botão para somar pontos (usa a variável qtd_pontos)
+                    if col_adm3.button("Add", key=f"add_{i}", help=f"Adicionar +{qtd_pontos} pontos"):
+                        jogador['Pontos'] += qtd_pontos
                         salvar_leaderboard_completo(placar_completo)
                         st.rerun()
 
-                    # Botão para remover pontos (-5000)
-                    if col_adm4.button("Rem", key=f"rem_{i}", help="Remover -5000 pontos"):
-                        # O max(0, ...) impede que a pontuação fique negativa
-                        jogador['Pontos'] = max(0, jogador['Pontos'] - 5000)
+                    # Botão para remover pontos (usa a variável qtd_pontos)
+                    if col_adm4.button("Rem", key=f"rem_{i}", help=f"Remover -{qtd_pontos} pontos"):
+                        jogador['Pontos'] = max(0, jogador['Pontos'] - qtd_pontos)
                         salvar_leaderboard_completo(placar_completo)
                         st.rerun()
             else:
