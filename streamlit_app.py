@@ -71,6 +71,7 @@ def salvar_no_leaderboard(nome, pontos):
     leaderboard = sorted(leaderboard, key=lambda x: x["Pontos"], reverse=True)[:5]
     with open(LEADERBOARD_FILE, "w", encoding="utf-8") as f:
         json.dump(leaderboard, f, ensure_ascii=False, indent=4)
+    return leaderboard
 
 # Tentativa de carregar dados salvos anteriormente
 dados_salvos = carregar_jogo()
@@ -282,11 +283,14 @@ st.write("(1.1.2) - Adição dos Ovos, correção de bugs e preços balanceados"
 st.write("(1.2.3) - Adição de novos pets e ovos e o log de atualizações")
 st.write("(1.3.4) - Interface reformulada e correção de bugs")
 st.write("(1.4.5) - Sistema de salvamento de jogo, adição de novos autoclickers, adição de um botão de reset e correção de bugs")
-st.write("(1.5.8) - Placar de classificação atualizando instantaneamente em tempo real")
+st.write("(1.6.0) - Correção definitiva: Atualização forçada em tempo real do placar")
 
 # 7. TABELA DE CLASSIFICAÇÃO (LEADERBOARD)
 st.markdown("---")
 st.subheader("🏆 Tabela de Classificação (Top 5)")
+
+# Carrega os dados atuais do arquivo
+dados_placar = carregar_leaderboard()
 
 nome_jogador = st.text_input(
     "Digite seu nome para salvar seu recorde:", 
@@ -299,19 +303,17 @@ botao_desativado = st.session_state.ja_enviou or nome_jogador.strip() == ""
 
 if st.button("Enviar Pontuação para o Placar", use_container_width=True, disabled=botao_desativado):
     st.session_state.ja_enviou = True  
-    salvar_no_leaderboard(nome_jogador.strip(), st.session_state.pontos)
+    # Atualiza o arquivo de leaderboard e retorna os dados novos na hora
+    dados_placar = salvar_no_leaderboard(nome_jogador.strip(), st.session_state.pontos)
     salvar_jogo()  
     st.success(f"Recorde de {st.session_state.pontos} pontos enviado com sucesso!")
-    time.sleep(0.2)
-    st.rerun()  # Força o Streamlit a redesenhar a tela inteira imediatamente com os dados novos
+    time.sleep(0.1)
+    st.rerun()
 
 if st.session_state.ja_enviou:
     st.info("🔒 Você já enviou sua pontuação nesta rodada. Caso queira mandar uma nova pontuação mais alta, você precisará resetar o jogo.")
 
-# Forçamos o carregamento aqui para garantir que ele pegue os dados pós-clique na mesma execução
-dados_placar = carregar_leaderboard()
-
-# Exibir a tabela corrigida e imediata
+# Exibir a tabela com garantia de dados atualizados
 if dados_placar:
     st.table(dados_placar)
 else:
@@ -351,4 +353,3 @@ else:
         if st.button("NÃO, voltar ao jogo", use_container_width=True):
             st.session_state.confirmando_reset = False
             st.rerun()
-    
