@@ -46,6 +46,10 @@ if "pontos_por_segundo" not in st.session_state:
 if "ultimo_tick" not in st.session_state:
     st.session_state.ultimo_tick = dados_salvos.get("ultimo_tick", time.time()) if dados_salvos else time.time()
 
+# SISTEMA DE DELAY: Guarda o momento da última compra para evitar spam
+if "ultima_compra" not in st.session_state:
+    st.session_state.ultima_compra = 0.0
+
 if "pet_slot_1" not in st.session_state:
     st.session_state.pet_slot_1 = dados_salvos.get("pet_slot_1", None) if dados_salvos else None
 if "pet_slot_2" not in st.session_state:
@@ -78,6 +82,9 @@ if tempo_passado >= 1.0:
     st.session_state.ultimo_tick = agora - (tempo_passado - ciclos)
     salvar_jogo()
 
+# Verifica se a loja está em Cooldown (Bloqueia cliques feitos antes de 0.5 segundos)
+loja_em_cooldown = (time.time() - st.session_state.ultima_compra) < 0.5
+
 # 3. INTERFACE PRINCIPAL
 st.title("Clicker Game")
 
@@ -87,7 +94,7 @@ try:
 except Exception:
     st.caption("🎵 Arquivo 'musica67.mp3' não encontrado.")
 
-# Botão principal de clique
+# Botão principal de clique (Não sofre com o delay da loja!)
 if st.button("            Click Here          ", use_container_width=True):
     st.session_state.pontos += st.session_state.poder_clique
     salvar_jogo()
@@ -111,10 +118,10 @@ with col3:
     st.write("Manoel G: 15% (+10 Pontos)")
     
     custo_ovo1 = 100
-    desativar_ovo1 = st.session_state.ovo1_bloqueado or st.session_state.pontos < custo_ovo1
+    desativar_ovo1 = st.session_state.ovo1_bloqueado or st.session_state.pontos < custo_ovo1 or loja_em_cooldown
     
     if st.button(f"Abrir Ovo = {custo_ovo1} Pontos", disabled=desativar_ovo1, key="botao_ovo1"):
-        # PROTEÇÃO ANTI-SPAM INTERNA: Verifica novamente antes de cobrar
+        st.session_state.ultima_compra = time.time()  # Registra o tempo do clique
         if st.session_state.pontos >= custo_ovo1:
             st.session_state.pontos -= custo_ovo1
             sorteado_ovo1 = random.choices(
@@ -126,7 +133,7 @@ with col3:
             st.session_state.pet_slot_1 = sorteado_ovo1
             atualizar_poder_clique()
             salvar_jogo()
-            time.sleep(0.4) # Pequeno delay de processamento
+            time.sleep(0.1)
             st.rerun()
 
     if st.session_state.pet_slot_1:
@@ -145,9 +152,10 @@ with col4:
     st.write("Michael J.: 15% (+100 Pontos)")
     
     custo_ovo2 = 1000
-    desativar_ovo2 = st.session_state.pontos < custo_ovo2
+    desativar_ovo2 = st.session_state.pontos < custo_ovo2 or loja_em_cooldown
     
     if st.button(f"Abrir Ovo = {custo_ovo2} Pontos", disabled=desativar_ovo2, key="botao_ovo2"):
+        st.session_state.ultima_compra = time.time()
         if st.session_state.pontos >= custo_ovo2:
             st.session_state.pontos -= custo_ovo2
             st.session_state.ovo1_bloqueado = True  
@@ -161,7 +169,7 @@ with col4:
             st.session_state.pet_slot_2 = sorteado_ovo2
             atualizar_poder_clique()
             salvar_jogo()
-            time.sleep(0.4)
+            time.sleep(0.1)
             st.rerun()
 
     if st.session_state.pet_slot_2:
@@ -194,32 +202,40 @@ with col1:
     st.subheader("Melhoria Clicker")
     for item in melhorias_clique:
         texto = f"Melhoria +{item['qtd']} = {item['custo']} Pts"
-        desativado = st.session_state.pontos < item['custo']
+        # O botão fica desativado se não tiver pontos OU se a loja estiver em cooldown
+        desativado = st.session_state.pontos < item['custo'] or loja_em_cooldown
 
         if st.button(texto, key=f"clique_{item['qtd']}", disabled=desativado, use_container_width=True):
-            if st.session_state.pontos >= item['custo']: # Dupla checagem de segurança
+            st.session_state.ultima_compra = time.time()
+            if st.session_state.pontos >= item['custo']: 
                 st.session_state.pontos -= item['custo']
                 st.session_state.poder_base += item['qtd']
                 atualizar_poder_clique()  
                 salvar_jogo()
-                time.sleep(0.3) # Delay anti-spam
+                time.sleep(0.1)
                 st.rerun()
 
 with col2:
     st.subheader("Auto Clickers")
     for item in melhorias_passivas:
         texto = f"Gerador +{item['qtd']}/s = {item['custo']} Pts"
-        desativado = st.session_state.pontos < item['custo']
+        desativado = st.session_state.pontos < item['custo'] or loja_em_cooldown
 
         if st.button(texto, key=f"passivo_{item['qtd']}", disabled=desativado, use_container_width=True):
-            if st.session_state.pontos >= item['custo']: # Dupla checagem de segurança
+            st.session_state.ultima_compra = time.time()
+            if st.session_state.pontos >= item['custo']: 
                 st.session_state.pontos -= item['custo']
                 st.session_state.pontos_por_segundo += item['qtd']
                 salvar_jogo()
-                time.sleep(0.3) # Delay anti-spam
+                time.sleep(0.1)
                 st.rerun()
 
 # 6. LOG DE ATUALIZAÇÕES
 st.markdown("---")
 st.subheader("Atualizações:")
-st.write("(1.4.1) - Proteção total contra cliques duplos (Anti-Spam) e saldo negativo!")
+st.write("(1.0.0)(Beta) - Lançamento!!!")
+st.write("(1.0.1) - Correção de bugs")
+st.write("(1.1.2) - Adição dos Ovos, correção de bugs e preços balanceados")
+st.write("(1.2.3) - Adição de novos pets e ovos e o log de atualizações")
+st.write("(1.3.4) - Interface reformulada e correção de bugs")
+st.write("(1.4.5) - Sistema de salvamento de jogo, adição de novos autoclickers e correção de bugs")
