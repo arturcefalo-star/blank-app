@@ -31,7 +31,7 @@ BONUS_PET_M2_R3 = 50000000
 CUSTO_OVO_MUNDO_2_CARO = 500000000   # Custo do segundo ovo do Mundo 2
 # =====================================================================
 
-SENHA_ADMIN = "XXxx67xxXX"
+SENHA_ADMIN = "XxIIlIIxX"
 ACCOUNTS_FILE = "usuarios.json"
 LEADERBOARD_FILE = "leaderboard.json"
 
@@ -111,7 +111,6 @@ def atualizar_no_leaderboard(nome, pontos):
             j["Jogador"] = nome
             break
             
-    # CORRIGIDO: Agora usa a variável correta "encontrado"
     if not encontrado:
         leaderboard.append({"Jogador": nome, "Pontos": pontos})
     
@@ -294,11 +293,39 @@ with st.sidebar:
                     pass
 
             if placar_completo:
+                usuarios_db = carregar_todos_usuarios()
+                
                 for i, jogador in enumerate(placar_completo):
-                    col_adm1, col_adm2, col_adm3, col_adm4 = st.columns([2, 1, 1, 1])
-                    col_adm1.write(f"**{jogador['Jogador']}**: {jogador['Pontos']} pts")
+                    nome_jogador = jogador["Jogador"]
+                    key_jogador = nome_jogador.lower()
                     
+                    col_adm1, col_adm2, col_adm3, col_adm4 = st.columns([2, 1, 1, 1])
+                    col_adm1.write(f"**{nome_jogador}**: {jogador['Pontos']} pts")
+                    
+                    # CORRIGIDO: Botão BAN agora deleta o progresso inteiro do JSON de usuários também!
                     if col_adm2.button("Ban", key=f"del_{i}"):
+                        if key_jogador in usuarios_db:
+                            usuarios_db[key_jogador]["dados"] = {
+                                "pontos": 0, "poder_base": 1, "pontos_por_segundo": 0,
+                                "pet_slot_1": None, "pet_slot_2": None,
+                                "pet_slot_m2_1": None, "pet_slot_m2_2": None,
+                                "ultimo_tick": time.time(), "mundo_2_desbloqueado": False, "mundo_atual": 1
+                            }
+                            salvar_todos_usuarios(usuarios_db)
+                        
+                        if key_jogador == st.session_state.nome_usuario.lower():
+                            st.session_state.pontos = 0
+                            st.session_state.poder_base = 1
+                            st.session_state.pontos_por_segundo = 0
+                            st.session_state.pet_slot_1 = None
+                            st.session_state.pet_slot_2 = None
+                            st.session_state.pet_slot_m2_1 = None
+                            st.session_state.pet_slot_m2_2 = None
+                            st.session_state.mundo_2_desbloqueado = False
+                            st.session_state.mundo_atual = 1
+                            st.session_state.pontos_leaderboard_cache = 0
+                            atualizar_poder_clique()
+
                         placar_completo.pop(i)
                         salvar_leaderboard_completo(placar_completo)
                         st.rerun()
@@ -306,15 +333,26 @@ with st.sidebar:
                     if col_adm3.button("Add", key=f"add_{i}"):
                         jogador['Pontos'] += qtd_pontos
                         salvar_leaderboard_completo(placar_completo)
-                        if jogador['Jogador'].lower() == st.session_state.nome_usuario.lower():
+                        
+                        if key_jogador in usuarios_db:
+                            usuarios_db[key_jogador]["dados"]["pontos"] = jogador['Pontos']
+                            salvar_todos_usuarios(usuarios_db)
+                            
+                        if key_jogador == st.session_state.nome_usuario.lower():
                             st.session_state.pontos += qtd_pontos
                             st.session_state.pontos_leaderboard_cache = st.session_state.pontos
                         st.rerun()
 
+                    # CORRIGIDO: Botão REM agora salva a perda de pontos diretamente na conta do alvo!
                     if col_adm4.button("Rem", key=f"rem_{i}"):
                         jogador['Pontos'] = max(0, jogador['Pontos'] - qtd_pontos)
                         salvar_leaderboard_completo(placar_completo)
-                        if jogador['Jogador'].lower() == st.session_state.nome_usuario.lower():
+                        
+                        if key_jogador in usuarios_db:
+                            usuarios_db[key_jogador]["dados"]["pontos"] = jogador['Pontos']
+                            salvar_todos_usuarios(usuarios_db)
+                            
+                        if key_jogador == st.session_state.nome_usuario.lower():
                             st.session_state.pontos = max(0, st.session_state.pontos - qtd_pontos)
                             st.session_state.pontos_leaderboard_cache = st.session_state.pontos
                         st.rerun()
