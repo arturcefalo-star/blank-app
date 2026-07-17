@@ -268,7 +268,7 @@ with col3:
         pet = st.session_state.pet_slot_1
         st.write("**Pet Equipado:**")
         try:
-            st.image(pet["arquivo"], width=150)
+            st.image(pet["arquivo"], width=188)
         except Exception:
             st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada.")
         st.caption(f"{pet['nome']} ({pet['chance']}) | +{pet['bonus']} por clique")
@@ -302,7 +302,7 @@ with col4:
         pet = st.session_state.pet_slot_2
         st.write("**Pet Equipado:**")
         try:
-            st.image(pet["arquivo"], width=150)
+            st.image(pet["arquivo"], width=100)
         except Exception:
             st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada.")
         st.caption(f"{pet['nome']} ({pet['chance']}) | +{pet['bonus']} por clique")
