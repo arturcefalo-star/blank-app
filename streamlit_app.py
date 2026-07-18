@@ -128,20 +128,19 @@ def remover_jogador_leaderboard(nome):
         except Exception:
             pass
 
-# --- FUNÇÕES DO SISTEMA DE MENSAGEM GLOBAL ---
-def carregar_mensagem_global():
+# --- FUNÇÕES DO SISTEMA DE MENSAGEM E EVENTO GLOBAL ---
+def carregar_configuracoes_globais():
     if os.path.exists(AVISOS_FILE):
         try:
             with open(AVISOS_FILE, "r", encoding="utf-8") as f:
-                dados = json.load(f)
-                return dados.get("mensagem", "")
+                return json.load(f)
         except Exception:
-            return ""
-    return ""
+            return {"mensagem": "", "evento_2x": False}
+    return {"mensagem": "", "evento_2x": False}
 
-def salvar_mensagem_global(msg):
+def salvar_configuracoes_globais(dados):
     with open(AVISOS_FILE, "w", encoding="utf-8") as f:
-        json.dump({"mensagem": msg}, f, ensure_ascii=False, indent=4)
+        json.dump(dados, f, ensure_ascii=False, indent=4)
 
 
 # --- INICIALIZAÇÃO DE SESSÃO DO LOGIN ---
@@ -234,6 +233,11 @@ if "confirmando_reset" not in st.session_state:
 if "pontos_leaderboard_cache" not in st.session_state:
     st.session_state.pontos_leaderboard_cache = st.session_state.pontos
 
+# Buscar configurações do servidor atuais
+config_globais = carregar_configuracoes_globais()
+aviso_sistema = config_globais.get("mensagem", "")
+evento_2x_ativo = config_globais.get("evento_2x", False)
+
 def atualizar_poder_clique():
     bonus_total = 0
     if st.session_state.pet_slot_1:
@@ -244,7 +248,14 @@ def atualizar_poder_clique():
         bonus_total += st.session_state.pet_slot_m2_1["bonus"]
     if st.session_state.pet_slot_m2_2:
         bonus_total += st.session_state.pet_slot_m2_2["bonus"]
-    st.session_state.poder_clique = st.session_state.poder_base + bonus_total
+    
+    poder_calculado = st.session_state.poder_base + bonus_total
+    
+    # Aplica o multiplicador do evento global de forma direta se estiver ativo
+    if evento_2x_ativo:
+        st.session_state.poder_clique = poder_calculado * 2
+    else:
+        st.session_state.poder_clique = poder_calculado
 
 atualizar_poder_clique()
 
@@ -392,18 +403,40 @@ with st.sidebar:
             # --- FERRAMENTA MSG (MENSAGEM GLOBAL) ---
             st.markdown("---")
             st.subheader("📢 Ferramenta 'msg'")
-            msg_atual = carregar_mensagem_global()
-            nova_msg = st.text_input("Texto do Comunicado Global:", value=msg_atual, placeholder="Digite o aviso geral aqui...")
+            nova_msg = st.text_input("Texto do Comunicado Global:", value=aviso_sistema, placeholder="Digite o aviso geral aqui...")
             
             col_msg1, col_msg2 = st.columns(2)
             if col_msg1.button("Enviar Mensagem", use_container_width=True):
-                salvar_mensagem_global(nova_msg)
+                config_globais["mensagem"] = nova_msg
+                salvar_configuracoes_globais(config_globais)
                 st.success("Mensagem enviada!")
                 time.sleep(0.3)
                 st.rerun()
                 
             if col_msg2.button("Apagar", type="secondary", use_container_width=True):
-                salvar_mensagem_global("")
+                config_globais["mensagem"] = ""
+                salvar_configuracoes_globais(config_globais)
+                st.rerun()
+                
+            # --- 🏆 NOVO: SEÇÃO DE EVENTOS DO JOGO ---
+            st.markdown("---")
+            st.subheader("🏆 Eventos")
+            status_evento = "ATIVADO 🟢" if evento_2x_ativo else "DESATIVADO 🔴"
+            st.write(f"Multiplicador Global de Clique 2X: **{status_evento}**")
+            
+            col_ev1, col_ev2 = st.columns(2)
+            if col_ev1.button("Ativar 2X", type="primary", use_container_width=True, disabled=evento_2x_ativo):
+                config_globais["evento_2x"] = True
+                salvar_configuracoes_globais(config_globais)
+                st.success("Evento 2X Global Ativado!")
+                time.sleep(0.5)
+                st.rerun()
+                
+            if col_ev2.button("Desativar", type="secondary", use_container_width=True, disabled=not evento_2x_ativo):
+                config_globais["evento_2x"] = False
+                salvar_configuracoes_globais(config_globais)
+                st.warning("Evento 2X Global Desativado!")
+                time.sleep(0.5)
                 st.rerun()
                 
         elif senha_input != "":
@@ -412,10 +445,12 @@ with st.sidebar:
 # --- CONTROLE DE VIAGEM ENTRE MUNDOS ---
 st.title("Clicker Game")
 
-# --- MONITOR DE EXIBIÇÃO DA MENSAGEM GLOBAL (PARA TODOS OS JOGADORES) ---
-aviso_sistema = carregar_mensagem_global()
+# --- MONITOR DE EXIBIÇÃO DA MENSAGEM GLOBAL E EVENTOS (PARA TODOS OS JOGADORES) ---
 if aviso_sistema.strip() != "":
     st.info(f"📢 **Mensagem Global:** {aviso_sistema}")
+
+if evento_2x_ativo:
+    st.warning("🔥 **EVENTO GLOBAL ATIVO:** Cliques dando o **DOBRO (2X)** de Pontos em todos os mundos!")
 
 CUSTO_MUNDO_2 = 10000000
 
@@ -457,6 +492,7 @@ if st.session_state.mundo_atual == 2:
         pass
 
     if st.button("            Click Here          ", key="click_m2_btn"):
+        # No mundo 2, o clique já multiplica por 2 nativamente.
         st.session_state.pontos += (st.session_state.poder_clique * 2)
         st.session_state.pontos_leaderboard_cache = st.session_state.pontos
         salvar_progresso_atual()
@@ -722,6 +758,7 @@ st.write("(1.8.9) - Adição de 2 novos ovos(segundo mundo), 6 novos pets e corr
 st.write("(2.0.0) - Adição de Sistema de login com senha e correção de bugs")
 st.write("(2.1.1) - Sistema de salvamento de top global em tempo real, correção dos botões de ban, adicionar pontos e remover pontos(ADM) e correção de bugs")
 st.write("(2.2.0) - Adição do Sistema de Mensagem Global (Ferramenta 'msg') no painel de administração")
+st.write("(2.3.0) - Adição do Painel de Eventos com multiplicador global 2X de cliques!")
 
 # --- 🏆 TABELA DE CLASSIFICAÇÃO GLOBAL (ATUALIZADA AUTOMATICAMENTE) ---
 st.markdown("---")
