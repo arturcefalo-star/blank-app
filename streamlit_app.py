@@ -439,7 +439,7 @@ with st.sidebar:
             
             # Multiplicador de Dinheiro
             status_evento = f"ATIVADO ({mult_evento}X)" if mult_evento > 1 else "DESATIVADO"
-            st.write(f"Multiplicador Global de Dinheiro: **{status_evento}**")
+            st.write(f"Multiplicador de Dinheiro: **{status_evento}**")
             
             col_ev2x, col_ev3x, col_ev4x, col_ev5x = st.columns(4)
             if col_ev2x.button("Ativar 2X", key="btn_ev2", use_container_width=True, disabled=(mult_evento == 2)):
