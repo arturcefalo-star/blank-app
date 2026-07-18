@@ -1,4 +1,4 @@
-Import streamlit as st
+import streamlit as st
 import time
 import random
 import json
@@ -768,5 +768,3 @@ else:
         if st.button("NÃO, voltar ao jogo", use_container_width=True):
             st.session_state.confirmando_reset = False
             st.rerun()
-
-Adicione um botão de 3x, 4x, e 5x de multiplicação dentro do painel de adimin
