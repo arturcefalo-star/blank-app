@@ -415,7 +415,7 @@ st.title("Clicker Game")
 # --- MONITOR DE EXIBIÇÃO DA MENSAGEM GLOBAL (PARA TODOS OS JOGADORES) ---
 aviso_sistema = carregar_mensagem_global()
 if aviso_sistema.strip() != "":
-    st.info(f"📢 **Mensagem Global:** {aviso_sistema}")
+    st.info(f"Mensagem do ADM {aviso_sistema}")
 
 CUSTO_MUNDO_2 = 10000000
 
