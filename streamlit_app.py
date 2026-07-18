@@ -260,11 +260,7 @@ def atualizar_poder_clique():
     st.session_state.poder_clique = poder_calculado * mult_evento
 
 def calcular_chances_ovo(c1, c2, c3_base):
-    """
-    Recalcula as chances do ovo aplicando o multiplicador de sorte na terceira vaga (c3_base <= 15).
-    Mantém a proporção correta para a soma não estourar ou bugar o random.choices.
-    """
-    c3_atual = min(c3_base * mult_sorte, 90) # Limita a 90% para o ovo não quebrar se o multiplicador for muito alto
+    c3_atual = min(c3_base * mult_sorte, 90)
     restante = 100 - c3_atual
     soma_base_comuns = c1 + c2
     
@@ -274,12 +270,17 @@ def calcular_chances_ovo(c1, c2, c3_base):
 
 atualizar_poder_clique()
 
-# --- REFRESH PASSIVO ---
-st_autorefresh(interval=900, key="global_loop")
+# --- 🚀 SISTEMA ANTI-LAG: REFRESH PASSIVO OTIMIZADO ---
+# Aumentado para 3000ms (3 segundos) para evitar que a interface trave ou pisque loucamente.
+st_autorefresh(interval=3000, key="global_loop")
+
+if "ultimo_tick" not in st.session_state:
+    st.session_state.ultimo_tick = time.time()
 
 agora = time.time()
 tempo_passado = agora - st.session_state.ultimo_tick
 
+# Sistema anti-lag calcula matematicamente o tempo acumulado offline/em background
 if tempo_passado >= 1.0:
     ciclos = int(tempo_passado)
     st.session_state.pontos += st.session_state.pontos_por_segundo * ciclos
@@ -339,11 +340,11 @@ with st.sidebar:
                 usuarios_db = carregar_todos_usuarios()
                 
                 for i, jogador in enumerate(placar_completo):
-                    nome_jogador = jogador["Jogador"]
-                    key_jogador = nome_jogador.lower()
+                    name_jogador = jogador["Jogador"]
+                    key_jogador = name_jogador.lower()
                     
                     col_adm1, col_adm2, col_adm3, col_adm4 = st.columns([2, 1, 1, 1])
-                    col_adm1.write(f"**{nome_jogador}**: {jogador['Pontos']} pts")
+                    col_adm1.write(f"**{name_jogador}**: {jogador['Pontos']} pts")
                     
                     if col_adm2.button("Ban", key=f"del_{key_jogador}_{i}"):
                         if key_jogador in usuarios_db:
@@ -475,7 +476,7 @@ with st.sidebar:
                         st.write(f"🔸 Slot 1: {pm1['nome']} (+{pm1['bonus']:,})" if pm1 else "🔸 Slot 1: Vazio")
                         st.write(f"🔸 Slot 2: {pm2['nome']} (+{pm2['bonus']:,})" if pm2 else "🔸 Slot 2: Vazio")
             else:
-                st.info("Nenhum jogador cadastrado para inspeção.")
+                st.info("Nenhum jogador cadastrado para inspection.")
                 
             # --- 🏆 SEÇÃO DE EVENTOS DO JOGO ---
             st.markdown("---")
@@ -609,11 +610,11 @@ if st.session_state.mundo_atual == 2:
     except Exception:
         pass
 
+    # --- ANTI-LAG: st.rerun() removido do botão de clique manual ---
     if st.button("            Click Here          ", key="click_m2_btn"):
         st.session_state.pontos += (st.session_state.poder_clique * 2)
         st.session_state.pontos_leaderboard_cache = st.session_state.pontos
         salvar_progresso_atual()
-        st.rerun()
 
     st.metric(label="Pontos Atuais", value=st.session_state.pontos)
     
@@ -625,7 +626,6 @@ if st.session_state.mundo_atual == 2:
     st.subheader("Comprar ovos:")
     col_m2_egg1, col_m2_egg2 = st.columns(2)
 
-    # RECALCULO DE CHANCES MUNDO 2 OVO 1 (50, 35, 15)
     ch1_m2_o1, ch2_m2_o1, ch3_m2_o1 = calcular_chances_ovo(50, 35, 15)
 
     with col_m2_egg1:
@@ -661,7 +661,6 @@ if st.session_state.mundo_atual == 2:
                 st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada.")
             st.caption(f"{pet['nome']} | +{calcular_bonus_pet(pet):,} por clique")
 
-    # RECALCULO DE CHANCES MUNDO 2 OVO 2 (50, 35, 15)
     ch1_m2_o2, ch2_m2_o2, ch3_m2_o2 = calcular_chances_ovo(50, 35, 15)
 
     with col_m2_egg2:
@@ -710,11 +709,11 @@ if st.session_state.mundo_atual != 2:
     except Exception:
         st.caption("🎵 Arquivo 'musica67.mp3' não encontrado.")
 
+    # --- ANTI-LAG: st.rerun() removido do botão de clique manual ---
     if st.button("            Click Here          ", key="click_m1_btn"):
         st.session_state.pontos += st.session_state.poder_clique
         st.session_state.pontos_leaderboard_cache = st.session_state.pontos
         salvar_progresso_atual()
-        st.rerun()
 
     st.metric(label="Pontos Atuais", value=st.session_state.pontos)
     col_status1, col_status2 = st.columns(2)
@@ -725,7 +724,6 @@ if st.session_state.mundo_atual != 2:
     st.subheader("Comprar Ovos:")
     col3, col4 = st.columns(2)
 
-    # RECALCULO DE CHANCES MUNDO 1 OVO 1 (50, 35, 15)
     ch1_m1_o1, ch2_m1_o1, ch3_m1_o1 = calcular_chances_ovo(50, 35, 15)
 
     with col3:
@@ -762,7 +760,6 @@ if st.session_state.mundo_atual != 2:
                 st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada.")
             st.caption(f"{pet['nome']} | +{calcular_bonus_pet(pet)} por clique")
 
-    # RECALCULO DE CHANCES MUNDO 1 OVO 2 (50, 35, 15)
     ch1_m1_o2, ch2_m1_o2, ch3_m1_o2 = calcular_chances_ovo(50, 35, 15)
 
     with col4:
@@ -889,7 +886,7 @@ st.write("(1.6.7) - Adição do painel de adimin com senha e correção de bugs"
 st.write("(1.7.8) - Adição do segundo mundo!!! novas melhorias, nova interface de melhorias, correção de bugs e muito mais!!!")
 st.write("(1.8.9) - Adição de 2 novos ovos(segundo mundo), 6 novos pets e correção de bugs")
 st.write("(2.0.0) - Adição de Sistema de login com senha e correção de bugs")
-st.write("(2.1.1) - Sistema de salvamento de top global em tempo real, correção dos botões de ban, adicionar pontos e remover pontos(ADM) e correção de bugs")
+st.write("(2.1.1) - Sistema de salvamento de top global in tempo real, correção dos botões de ban, adicionar pontos e remover pontos(ADM) e correção de bugs")
 st.write("(2.2.2) - Adição do Sistema de Mensagem Global (ADM)")
 st.write("(2.3.3) - Adição de novas funções de multiplicação de sorte e dinheiro (ADM)")
 st.write("(2.4.4) - Adição do Sistema de Inspeção de Jogadores (ADM)")
