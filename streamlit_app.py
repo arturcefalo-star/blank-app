@@ -458,8 +458,6 @@ with st.sidebar:
                         except Exception:
                             pass
 
-                    qtd_pontos = st.number_input("Quantidade de pontos para Add/Rem:", min_value=1, value=1000, step=100)
-
                     # Botão Adicionar Pontos
                     if col_act1.button("Add Pts", key=f"ins_add_{key_inspect}"):
                         if key_inspect in usuarios_db_inspect:
