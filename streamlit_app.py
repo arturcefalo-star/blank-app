@@ -112,6 +112,8 @@ def atualizar_no_leaderboard(nome, pontos):
             j["Jogador"] = nome
             break
             
+    if not पाया_goundo:
+        pass
     if not encontrado:
         leaderboard.append({"Jogador": nome, "Pontos": pontos})
     
@@ -296,35 +298,6 @@ with st.sidebar:
         if len(senha_input) > 0 and senha_input == SENHA_ADMIN:
             st.success("Acesso Autorizado!")
             
-            # --- NOVO: MULTIPLICADORES DE PONTOS ---
-            st.subheader("🚀 Multiplicadores (Seus Pontos)")
-            col_m3, col_m4, col_m5 = st.columns(3)
-            
-            if col_m3.button("3x Pontos", use_container_width=True):
-                st.session_state.pontos *= 3
-                st.session_state.pontos_leaderboard_cache = st.session_state.pontos
-                salvar_progresso_atual()
-                st.success("Multiplicado por 3x!")
-                time.sleep(0.3)
-                st.rerun()
-                
-            if col_m4.button("4x Pontos", use_container_width=True):
-                st.session_state.pontos *= 4
-                st.session_state.pontos_leaderboard_cache = st.session_state.pontos
-                salvar_progresso_atual()
-                st.success("Multiplicado por 4x!")
-                time.sleep(0.3)
-                st.rerun()
-                
-            if col_m5.button("5x Pontos", use_container_width=True):
-                st.session_state.pontos *= 5
-                st.session_state.pontos_leaderboard_cache = st.session_state.pontos
-                salvar_progresso_atual()
-                st.success("Multiplicado por 5x!")
-                time.sleep(0.3)
-                st.rerun()
-            st.markdown("---")
-            
             st.subheader("Modificador de Pontos")
             qtd_pontos = st.number_input("Quantidade de pontos para Add/Rem:", min_value=1, value=1000, step=100)
             
@@ -433,6 +406,35 @@ with st.sidebar:
                 
             if col_msg2.button("Apagar", type="secondary", use_container_width=True):
                 salvar_mensagem_global("")
+                st.rerun()
+                
+            # --- NOVO: MULTIPLICADORES DE PONTOS (INSERIDO NO FINAL DO PAINEL) ---
+            st.markdown("---")
+            st.subheader("🚀 Multiplicadores (Seus Pontos)")
+            col_m3, col_m4, col_m5 = st.columns(3)
+            
+            if col_m3.button("3x", use_container_width=True):
+                st.session_state.pontos *= 3
+                st.session_state.pontos_leaderboard_cache = st.session_state.pontos
+                salvar_progresso_atual()
+                st.success("Multiplicado por 3x!")
+                time.sleep(0.3)
+                st.rerun()
+                
+            if col_m4.button("4x", use_container_width=True):
+                st.session_state.pontos *= 4
+                st.session_state.pontos_leaderboard_cache = st.session_state.pontos
+                salvar_progresso_atual()
+                st.success("Multiplicado por 4x!")
+                time.sleep(0.3)
+                st.rerun()
+                
+            if col_m5.button("5x", use_container_width=True):
+                st.session_state.pontos *= 5
+                st.session_state.pontos_leaderboard_cache = st.session_state.pontos
+                salvar_progresso_atual()
+                st.success("Multiplicado por 5x!")
+                time.sleep(0.3)
                 st.rerun()
                 
         elif senha_input != "":
