@@ -36,6 +36,7 @@ SENHA_ADMIN2 = "19371937"
 ACCOUNTS_FILE = "usuarios.json"
 LEADERBOARD_FILE = "leaderboard.json"
 AVISOS_FILE = "avisos.json"
+SESSION_FILE = "sessao_ativa.json"  # Arquivo que lembra quem está logado
 
 # --- FUNÇÕES DE GERENCIAMENTO DE USUÁRIOS E SALVAMENTO ---
 
@@ -43,28 +44,21 @@ def carregar_todos_usuarios():
     if os.path.exists(ACCOUNTS_FILE):
         try:
             with open(ACCOUNTS_FILE, "r", encoding="utf-8") as f:
-                conteudo = json.load(f)
-                return {k.lower(): v for k, v in conteudo.items()}
+                return json.load(f)
         except Exception:
             return {}
     return {}
 
 def salvar_todos_usuarios(usuarios):
     with open(ACCOUNTS_FILE, "w", encoding="utf-8") as f:
-        usuarios_normalizados = {k.lower(): v for k, v in usuarios.items()}
-        json.dump(usuarios_normalizados, f, ensure_ascii=False, indent=4)
+        json.dump(usuarios, f, ensure_ascii=False, indent=4)
 
-def salvar_progresso_atual(usando_admin=None, usando_apoiador=None):
+def salvar_progresso_atual():
     if st.session_state.logado and st.session_state.nome_usuario:
         usuarios = carregar_todos_usuarios()
         username_key = st.session_state.nome_usuario.lower()
         
         if username_key in usuarios:
-            if usando_admin is not None:
-                st.session_state.p_admin_ativo = usando_admin
-            if usando_apoiador is not None:
-                st.session_state.p_apoiador_ativo = usando_apoiador
-
             usuarios[username_key]["dados"] = {
                 "pontos": st.session_state.pontos,
                 "poder_base": st.session_state.poder_base,
@@ -75,12 +69,10 @@ def salvar_progresso_atual(usando_admin=None, usando_apoiador=None):
                 "pet_slot_m2_2": st.session_state.pet_slot_m2_2,
                 "ultimo_tick": st.session_state.ultimo_tick,
                 "mundo_2_desbloqueado": st.session_state.mundo_2_desbloqueado,
-                "mundo_atual": st.session_state.mundo_atual,
-                "usando_admin": st.session_state.p_admin_ativo,
-                "usando_apoiador": st.session_state.p_apoiador_ativo
+                "mundo_atual": st.session_state.mundo_atual
             }
             salvar_todos_usuarios(usuarios)
-            atualizar_no_leaderboard(usuarios[username_key]["nome_exibicao"], st.session_state.pontos)
+            atualizar_no_leaderboard(st.session_state.nome_usuario, st.session_state.pontos)
 
 def carregar_leaderboard():
     if os.path.exists(LEADERBOARD_FILE):
@@ -119,7 +111,7 @@ def atualizar_no_leaderboard(nome, pontos):
         if j["Jogador"].lower() == nome.lower():
             encontrado = True
             j["Pontos"] = pontos  
-            j["Jogador"] = nome  
+            j["Jogador"] = nome
             break
             
     if not encontrado:
@@ -156,33 +148,55 @@ def salvar_configuracoes_globais(dados):
     with open(AVISOS_FILE, "w", encoding="utf-8") as f:
         json.dump(dados, f, ensure_ascii=False, indent=4)
 
+# --- FUNÇÕES DE AUTO-LOGIN (PERSISTÊNCIA DE SESSÃO) ---
+def salvar_sessao_ativa(username):
+    with open(SESSION_FILE, "w", encoding="utf-8") as f:
+        json.dump({"usuario_ativo": username}, f)
 
-# --- INICIALIZAÇÃO DE SESSÃO ---
+def limpar_sessao_ativa():
+    if os.path.exists(SESSION_FILE):
+        try:
+            os.remove(SESSION_FILE)
+        except Exception:
+            pass
+
+def verificar_auto_login():
+    if os.path.exists(SESSION_FILE):
+        try:
+            with open(SESSION_FILE, "r", encoding="utf-8") as f:
+                dados_sessao = json.load(f)
+                return dados_sessao.get("usuario_ativo", "").lower()
+        except Exception:
+            return None
+    return None
+
+
+# --- INICIALIZAÇÃO DE SESSÃO DO LOGIN ---
 if "logado" not in st.session_state:
     st.session_state.logado = False
 if "nome_usuario" not in st.session_state:
     st.session_state.nome_usuario = ""
 
-if not st.session_state.logado and "user_session" in st.query_params:
-    usuario_salvo = st.query_params["user_session"].lower()
-    usuarios = carregar_todos_usuarios()
-    if usuario_salvo in usuarios:
-        dados = usuarios[usuario_salvo]["dados"]
-        st.session_state.pontos = dados.get("pontos", 0)
-        st.session_state.poder_base = dados.get("poder_base", 1)
-        st.session_state.pontos_por_segundo = dados.get("pontos_por_segundo", 0)
-        st.session_state.pet_slot_1 = dados.get("pet_slot_1", None)
-        st.session_state.pet_slot_2 = dados.get("pet_slot_2", None)
-        st.session_state.pet_slot_m2_1 = dados.get("pet_slot_m2_1", None)
-        st.session_state.pet_slot_m2_2 = dados.get("pet_slot_m2_2", None)
-        st.session_state.ultimo_tick = dados.get("ultimo_tick", time.time())
-        st.session_state.mundo_2_desbloqueado = dados.get("mundo_2_desbloqueado", False)
-        st.session_state.mundo_atual = dados.get("mundo_atual", 1)
-        st.session_state.pontos_leaderboard_cache = dados.get("pontos", 0)
-        st.session_state.p_admin_ativo = dados.get("usando_admin", False)
-        st.session_state.p_apoiador_ativo = dados.get("usando_apoiador", False)
-        st.session_state.nome_usuario = usuarios[usuario_salvo]["nome_exibicao"]
-        st.session_state.logado = True
+# --- CHECAGEM AUTOMÁTICA DE LOGIN ---
+if not st.session_state.logado:
+    usuario_salvo = verificar_auto_login()
+    if usuario_salvo:
+        usuarios = carregar_todos_usuarios()
+        if usuario_salvo in usuarios:
+            dados = usuarios[usuario_salvo]["dados"]
+            st.session_state.pontos = dados.get("pontos", 0)
+            st.session_state.poder_base = dados.get("poder_base", 1)
+            st.session_state.pontos_por_segundo = dados.get("pontos_por_segundo", 0)
+            st.session_state.pet_slot_1 = dados.get("pet_slot_1", None)
+            st.session_state.pet_slot_2 = dados.get("pet_slot_2", None)
+            st.session_state.pet_slot_m2_1 = dados.get("pet_slot_m2_1", None)
+            st.session_state.pet_slot_m2_2 = dados.get("pet_slot_m2_2", None)
+            st.session_state.ultimo_tick = dados.get("ultimo_tick", time.time())
+            st.session_state.mundo_2_desbloqueado = dados.get("mundo_2_desbloqueado", False)
+            st.session_state.mundo_atual = dados.get("mundo_atual", 1)
+            st.session_state.pontos_leaderboard_cache = dados.get("pontos", 0)
+            st.session_state.nome_usuario = usuarios[usuario_salvo]["nome_exibicao"]
+            st.session_state.logado = True
 
 # =====================================================================
 # 🔐 TELA DE LOGIN / REGISTRO
@@ -201,7 +215,7 @@ if not st.session_state.logado:
             usuarios = carregar_todos_usuarios()
             user_key = log_user.lower()
             
-            if user_key in usuarios and str(usuarios[user_key]["senha"]).strip() == str(log_pass).strip():
+            if user_key in usuarios and usuarios[user_key]["senha"] == log_pass:
                 dados = usuarios[user_key]["dados"]
                 st.session_state.pontos = dados.get("pontos", 0)
                 st.session_state.poder_base = dados.get("poder_base", 1)
@@ -214,12 +228,11 @@ if not st.session_state.logado:
                 st.session_state.mundo_2_desbloqueado = dados.get("mundo_2_desbloqueado", False)
                 st.session_state.mundo_atual = dados.get("mundo_atual", 1)
                 st.session_state.pontos_leaderboard_cache = dados.get("pontos", 0)
-                st.session_state.p_admin_ativo = dados.get("usando_admin", False)
-                st.session_state.p_apoiador_ativo = dados.get("usando_apoiador", False)
                 
                 st.session_state.nome_usuario = usuarios[user_key]["nome_exibicao"]
                 st.session_state.logado = True
-                st.query_params["user_session"] = user_key
+                
+                salvar_sessao_ativa(user_key)
                 
                 st.success(f"Bem-vindo de volta, {st.session_state.nome_usuario}!")
                 time.sleep(0.5)
@@ -245,25 +258,22 @@ if not st.session_state.logado:
                 st.error("As senhas não coincidem.")
             else:
                 usuarios[user_key] = {
-                    "senha": reg_pass.strip(),
+                    "senha": reg_pass,
                     "nome_exibicao": reg_user,
                     "dados": {
                         "pontos": 0, "poder_base": 1, "pontos_por_segundo": 0,
                         "pet_slot_1": None, "pet_slot_2": None,
                         "pet_slot_m2_1": None, "pet_slot_m2_2": None,
-                        "ultimo_tick": time.time(), "mundo_2_desbloqueado": False, "mundo_atual": 1,
-                        "usando_admin": False, "usando_apoiador": False
+                        "ultimo_tick": time.time(), "mundo_2_desbloqueado": False, "mundo_atual": 1
                     }
                 }
                 salvar_todos_usuarios(usuarios)
-                # Força a criação do registro inicial também no leaderboard para consistência global
-                atualizar_no_leaderboard(reg_user, 0)
                 st.success("Conta criada com sucesso! Faça login na aba ao lado.")
                 
     st.stop()
 
 # =====================================================================
-# 🎮 INTERFACE E LOGICA PRINCIPAL DO JOGO
+# 🎮 INTERFACE E LOGICA PRINCIPAL DO JOGO (APÓS LOGAR)
 # =====================================================================
 
 if "poder_clique" not in st.session_state:
@@ -276,12 +286,6 @@ if "pontos_leaderboard_cache" not in st.session_state:
     st.session_state.pontos_leaderboard_cache = st.session_state.pontos
 if "ultimo_tick" not in st.session_state:
     st.session_state.ultimo_tick = time.time()
-if "p_admin_ativo" not in st.session_state:
-    st.session_state.p_admin_ativo = False
-if "p_apoiador_ativo" not in st.session_state:
-    st.session_state.p_apoiador_ativo = False
-if "jogador_sob_inspecao" not in st.session_state:
-    st.session_state.jogador_sob_inspecao = None
 
 config_globais = carregar_configuracoes_globais()
 aviso_sistema = config_globais.get("mensagem", "")
@@ -312,23 +316,24 @@ def calcular_chances_ovo(c1, c2, c3_base):
     c2_atual = (c2 / soma_base_comuns) * restante
     return c1_atual, c2_atual, c3_atual
 
-# Processamento passivo global de pontos baseado no tempo corrido real
-agora = time.time()
-tempo_passado = agora - st.session_state.ultimo_tick
-if tempo_passado >= 1.0:
-    ciclos = int(tempo_passado)
-    st.session_state.pontos += st.session_state.pontos_por_segundo * ciclos
-    st.session_state.ultimo_tick = agora - (tempo_passado - ciclos)
-    st.session_state.pontos_leaderboard_cache = st.session_state.pontos
-
 atualizar_poder_clique()
 
-# --- ÁREA DE CLIQUE FRAGMENTADA ---
+# --- 🚀 SISTEMA ANTI-LAG DEFINITIVO COM FRAGMENTO OTIMIZADO ---
 @st.fragment
 def renderizar_area_clique():
     st_autorefresh(interval=3000, key="game_click_loop")
     
-    st.metric(label="Pontos Atuais", value=f"{st.session_state.pontos:,}")
+    agora = time.time()
+    tempo_passado = agora - st.session_state.ultimo_tick
+
+    if tempo_passado >= 1.0:
+        ciclos = int(tempo_passado)
+        st.session_state.pontos += st.session_state.pontos_por_segundo * ciclos
+        st.session_state.ultimo_tick = agora - (tempo_passado - ciclos)
+        st.session_state.pontos_leaderboard_cache = st.session_state.pontos
+        salvar_progresso_atual()
+
+    st.metric(label="Pontos Atuais", value=st.session_state.pontos)
     
     if st.session_state.mundo_atual == 2:
         if st.button("            Click Here          ", key="click_m2_btn", use_container_width=True):
@@ -367,52 +372,19 @@ loja_em_cooldown = (time.time() - st.session_state.ultima_compra) < 0.6
 with st.sidebar:
     st.write(f"Conectado como: **{st.session_state.nome_usuario}**")
     if st.button("Sair da Conta (Logout)", type="secondary"):
-        salvar_progresso_atual(usando_admin=False, usando_apoiador=False)
-        st.query_params.clear()
+        salvar_progresso_atual()
+        limpar_sessao_ativa()  
         st.session_state.logado = False
         st.session_state.nome_usuario = ""
         st.rerun()
         
     st.markdown("---")
     st.header("⚙️ Painel de Admin")
-    
-    modo_admin_chk = st.checkbox("Exibir Opções de Admin", value=st.session_state.p_admin_ativo)
-    
-    if not modo_admin_chk and st.session_state.p_admin_ativo:
-        salvar_progresso_atual(usando_admin=False)
-        st.rerun()
-            
-    if modo_admin_chk:
+    if st.checkbox("Ativar Modo Administrador"):
         senha_input = st.text_input("Digite a senha de Admin:", type="password", key="pwd_admin")
         
         if len(senha_input) > 0 and senha_input == SENHA_ADMIN:
-            if not st.session_state.p_admin_ativo:
-                salvar_progresso_atual(usando_admin=True)
-                st.rerun()
-                
-            st.success("Acesso Autorizado!")
-            
-            # --- MONITOR DE UTILIZADORES ---
-            st.markdown("---")
-            st.subheader("👁️ Monitor de Painéis")
-            db_usuarios = carregar_todos_usuarios()
-            adms_ativos = [db_usuarios[k]["nome_exibicao"] for k in db_usuarios if db_usuarios[k].get("dados", {}).get("usando_admin", False)]
-            apoiadores_ativos = [db_usuarios[k]["nome_exibicao"] for k in db_usuarios if db_usuarios[k].get("dados", {}).get("usando_apoiador", False)]
-            
-            st.write("**Utilizadores do painel de Admin:**")
-            if adms_ativos:
-                for adm in adms_ativos:
-                    st.code(f"• {adm}", language="text")
-            else:
-                st.caption("Nenhum no momento.")
-                
-            st.write("**Utilizadores do painel de Apoiador:**")
-            if apoiadores_ativos:
-                for apo in apoiadores_ativos:
-                    st.code(f"• {apo}", language="text")
-            else:
-                st.caption("Nenhum no momento.")
-            st.markdown("---")
+            st.success("Success!")
             
             st.subheader("Gerenciar Placar Global")
             
@@ -447,149 +419,129 @@ with st.sidebar:
                 salvar_configuracoes_globais(config_globais)
                 st.rerun()
 
-            # --- 🛠️ INSPEÇÃO DE JOGADORES 100% CORRIGIDA EM TEMPO REAL ---
             st.markdown("---")
             st.subheader("Inspecionar Jogador")
 
-            # Varre o banco bruto em tempo real e captura o nome exato de exibição configurado no registro
             usuarios_db_inspect = carregar_todos_usuarios()
-            lista_jogadores = []
-            for chave_username in usuarios_db_inspect:
-                if "nome_exibicao" in usuarios_db_inspect[chave_username]:
-                    lista_jogadores.append(usuarios_db_inspect[chave_username]["nome_exibicao"])
-            
-            # Ordena alfabeticamente para facilitar a busca do Admin
-            lista_jogadores = sorted(list(set(lista_jogadores)))
+            lista_jogadores = [usuarios_db_inspect[k]["nome_exibicao"] for k in usuarios_db_inspect]
 
             if lista_jogadores:
-                # Se o jogador selecionado sumir ou o estado resetar, volta para o primeiro da lista de forma segura
-                if st.session_state.jogador_sob_inspecao not in lista_jogadores:
-                    st.session_state.jogador_sob_inspecao = lista_jogadores[0]
+                jogador_selecionado = st.selectbox("Selecione um jogador:", lista_jogadores, key="inspect_select")
                 
-                idx_inicial = lista_jogadores.index(st.session_state.jogador_sob_inspecao)
-                
-                # A chave dinâmica inclui a soma total de cadastros. Se uma conta nova entrar, o widget reconstrói na hora.
-                total_contas_registradas = len(lista_jogadores)
-                jogador_selecionado = st.selectbox(
-                    "Selecione um jogador:", 
-                    options=lista_jogadores, 
-                    index=idx_inicial, 
-                    key=f"live_inspect_widget_v3_{total_contas_registradas}"
-                )
-                
-                st.session_state.jogador_sob_inspecao = jogador_selecionado
+                if "jogador_sob_inspecao" not in st.session_state:
+                    st.session_state.jogador_sob_inspecao = None
+
+                if st.button("Inspecionar Dados", use_container_width=True):
+                    st.session_state.jogador_sob_inspecao = jogador_selecionado
 
                 if st.session_state.jogador_sob_inspecao:
-                    alvo_atual = st.session_state.jogador_sob_inspecao
+                    alvo_atual = st.session_state.inspect_select
                     key_inspect = alvo_atual.lower()
+                    dados_player = usuarios_db_inspect[key_inspect]["dados"]
                     
-                    if key_inspect in usuarios_db_inspect:
-                        dados_player = usuarios_db_inspect[key_inspect]["dados"]
+                    st.markdown(f"### Status de: **{alvo_atual}**")
+                    
+                    col_ins1, col_ins2, col_ins3 = st.columns(3)
+                    col_ins1.metric("Pontos", f"{dados_player.get('pontos', 0):,}")
+                    col_ins2.metric("Poder Base", f"{dados_player.get('poder_base', 1):,}")
+                    col_ins3.metric("Pontos/Seg", f"{dados_player.get('pontos_por_segundo', 0):,}")
+                    
+                    mundo_txt = "Mundo 2" if dados_player.get("mundo_atual", 1) == 2 else "Mundo 1"
+                    m2_liberado = "Sim" if dados_player.get("mundo_2_desbloqueado", False) else "Não"
+                    st.write(f" **Mundo Atual:** {mundo_txt} | **Mundo 2 Desbloqueado?** {m2_liberado}")
+                    
+                    st.markdown(" **Pets Equipados:**")
+                    col_p1, col_p2 = st.columns(2)
+                    
+                    with col_p1:
+                        st.write("**Mundo 1 Slots:**")
+                        p1 = dados_player.get("pet_slot_1")
+                        p2 = dados_player.get("pet_slot_2")
+                        st.write(f"Slot 1: {p1['nome']} (+{p1['bonus']:,})" if p1 else "Slot 1: Vazio")
+                        st.write(f"Slot 2: {p2['nome']} (+{p2['bonus']:,})" if p2 else "Slot 2: Vazio")
                         
-                        st.markdown(f"### Status de: **{alvo_atual}**")
-                        
-                        col_ins1, col_ins2, col_ins3 = st.columns(3)
-                        col_ins1.metric("Pontos", f"{dados_player.get('pontos', 0):,}")
-                        col_ins2.metric("Poder Base", f"{dados_player.get('poder_base', 1):,}")
-                        col_ins3.metric("Pontos/Seg", f"{dados_player.get('pontos_por_segundo', 0):,}")
-                        
-                        mundo_txt = "Mundo 2" if dados_player.get("mundo_atual", 1) == 2 else "Mundo 1"
-                        m2_liberado = "Sim" if dados_player.get("mundo_2_desbloqueado", False) else "Não"
-                        st.write(f" **Mundo Atual:** {mundo_txt} | **Mundo 2 Desbloqueado?** {m2_liberado}")
-                        
-                        st.markdown(" **Pets Equipados:**")
-                        col_p1, col_p2 = st.columns(2)
-                        
-                        with col_p1:
-                            st.write("**Mundo 1 Slots:**")
-                            p1 = dados_player.get("pet_slot_1")
-                            p2 = dados_player.get("pet_slot_2")
-                            st.write(f"Slot 1: {p1['nome']} (+{p1['bonus']:,})" if p1 else "Slot 1: Vazio")
-                            st.write(f"Slot 2: {p2['nome']} (+{p2['bonus']:,})" if p2 else "Slot 2: Vazio")
-                            
-                        with col_p2:
-                            st.write("**Mundo 2 Slots:**")
-                            pm1 = dados_player.get("pet_slot_m2_1")
-                            pm2 = dados_player.get("pet_slot_m2_2")
-                            st.write(f"Slot 1: {pm1['nome']} (+{pm1['bonus']:,})" if pm1 else "Slot 3: Vazio")
-                            st.write(f"Slot 2: {pm2['nome']} (+{pm2['bonus']:,})" if pm2 else "Slot 4: Vazio")
+                    with col_p2:
+                        st.write("**Mundo 2 Slots:**")
+                        pm1 = dados_player.get("pet_slot_m2_1")
+                        pm2 = dados_player.get("pet_slot_m2_2")
+                        st.write(f"Slot 1: {pm1['nome']} (+{pm1['bonus']:,})" if pm1 else "Slot 3: Vazio")
+                        st.write(f"Slot 2: {pm2['nome']} (+{pm2['bonus']:,})" if pm2 else "Slot 4: Vazio")
 
-                        st.markdown("---")
-                        qtd_pontos = st.number_input("Quantidade de pontos (Add/Rem):", min_value=1, value=1000, step=100, key="qtd_pontos_adm")
+                    st.markdown("---")
+                    qtd_pontos = st.number_input("Quantidade de pontos (Add/Rem):", min_value=1, value=1000, step=100, key="qtd_pontos_adm")
 
-                        st.markdown(" **Ações Disponíveis:**")
-                        col_adm1, col_adm2, col_adm3 = st.columns(3)
-                        
-                        if col_adm1.button("Ban", key=f"del_{key_inspect}", use_container_width=True):
+                    st.markdown(" **Ações Disponíveis:**")
+                    col_adm1, col_adm2, col_adm3 = st.columns(3)
+                    
+                    if col_adm1.button("Ban", key=f"del_{key_inspect}", use_container_width=True):
+                        if key_inspect in usuarios_db_inspect:
                             usuarios_db_inspect[key_inspect]["dados"] = {
                                 "pontos": 0, "poder_base": 1, "pontos_por_segundo": 0,
                                 "pet_slot_1": None, "pet_slot_2": None,
                                 "pet_slot_m2_1": None, "pet_slot_m2_2": None,
-                                "ultimo_tick": time.time(), "mundo_2_desbloqueado": False, "mundo_atual": 1,
-                                "usando_admin": False, "usando_apoiador": False
+                                "ultimo_tick": time.time(), "mundo_2_desbloqueado": False, "mundo_atual": 1
                             }
                             salvar_todos_usuarios(usuarios_db_inspect)
-                            
-                            for j in placar_completo:
-                                if j["Jogador"].lower() == key_inspect:
-                                    j["Points"] = 0
-                                    if "Pontos" in j: j["Pontos"] = 0
-                                    break
-                            salvar_leaderboard_completo(placar_completo)
-
-                            if key_inspect == st.session_state.nome_usuario.lower():
-                                st.session_state.pontos = 0
-                                st.session_state.poder_base = 1
-                                st.session_state.pontos_por_segundo = 0
-                                st.session_state.pet_slot_1 = None
-                                st.session_state.pet_slot_2 = None
-                                st.session_state.pet_slot_m2_1 = None
-                                st.session_state.pet_slot_m2_2 = None
-                                st.session_state.mundo_2_desbloqueado = False
-                                st.session_state.mundo_atual = 1
-                                st.session_state.pontos_leaderboard_cache = 0
-                                st.session_state.p_admin_ativo = False
-                                st.session_state.p_apoiador_ativo = False
-                                atualizar_poder_clique()
-                            st.session_state.jogador_sob_inspecao = None
-                            st.rerun()
                         
-                        if col_adm2.button("Add", key=f"add_{key_inspect}", use_container_width=True):
+                        for j in placar_completo:
+                            if j["Jogador"].lower() == key_inspect:
+                                j["Points"] = 0
+                                if "Pontos" in j: j["Pontos"] = 0
+                                break
+                        salvar_leaderboard_completo(placar_completo)
+
+                        if key_inspect == st.session_state.nome_usuario.lower():
+                            st.session_state.pontos = 0
+                            st.session_state.poder_base = 1
+                            st.session_state.pontos_por_segundo = 0
+                            st.session_state.pet_slot_1 = None
+                            st.session_state.pet_slot_2 = None
+                            st.session_state.pet_slot_m2_1 = None
+                            st.session_state.pet_slot_m2_2 = None
+                            st.session_state.mundo_2_desbloqueado = False
+                            st.session_state.mundo_atual = 1
+                            st.session_state.pontos_leaderboard_cache = 0
+                            atualizar_poder_clique()
+                        st.rerun()
+                    
+                    if col_adm2.button("Add", key=f"add_{key_inspect}", use_container_width=True):
+                        if key_inspect in usuarios_db_inspect:
                             usuarios_db_inspect[key_inspect]["dados"]["pontos"] = max(0, usuarios_db_inspect[key_inspect]["dados"].get("pontos", 0) + qtd_pontos)
                             salvar_todos_usuarios(usuarios_db_inspect)
-                                
-                            if key_inspect == st.session_state.nome_usuario.lower():
-                                st.session_state.pontos += qtd_pontos
-                                st.session_state.pontos_leaderboard_cache = st.session_state.pontos
-                                
-                            for j in placar_completo:
-                                if j["Jogador"].lower() == key_inspect:
-                                    if "Pontos" in j: j["Pontos"] += qtd_pontos
-                                    if "Points" in j: j["Points"] += qtd_pontos
-                                    break
-                            salvar_leaderboard_completo(placar_completo)
-                            st.rerun()
+                            
+                        if key_inspect == st.session_state.nome_usuario.lower():
+                            st.session_state.pontos += qtd_pontos
+                            st.session_state.pontos_leaderboard_cache = st.session_state.pontos
+                            
+                        for j in placar_completo:
+                            if j["Jogador"].lower() == key_inspect:
+                                if "Pontos" in j: j["Pontos"] += qtd_pontos
+                                if "Points" in j: j["Points"] += qtd_pontos
+                                break
+                        salvar_leaderboard_completo(placar_completo)
+                        st.rerun()
 
-                        if col_adm3.button("Rem", key=f"rem_{key_inspect}", use_container_width=True):
+                    if col_adm3.button("Rem", key=f"rem_{key_inspect}", use_container_width=True):
+                        if key_inspect in usuarios_db_inspect:
                             usuarios_db_inspect[key_inspect]["dados"]["pontos"] = max(0, usuarios_db_inspect[key_inspect]["dados"].get("pontos", 0) - qtd_pontos)
                             salvar_todos_usuarios(usuarios_db_inspect)
-                                
-                            if key_inspect == st.session_state.nome_usuario.lower():
-                                st.session_state.pontos = max(0, st.session_state.pontos - qtd_pontos)
-                                st.session_state.pontos_leaderboard_cache = st.session_state.pontos
-                                
-                            for j in placar_completo:
-                                if j["Jogador"].lower() == key_inspect:
-                                    if "Pontos" in j: j["Pontos"] = max(0, j["Pontos"] - qtd_pontos)
-                                    if "Points" in j: j["Points"] = max(0, j["Points"] - qtd_pontos)
-                                    break
-                            salvar_leaderboard_completo(placar_completo)
-                            st.rerun()
+                            
+                        if key_inspect == st.session_state.nome_usuario.lower():
+                            st.session_state.pontos = max(0, st.session_state.pontos - qtd_pontos)
+                            st.session_state.pontos_leaderboard_cache = st.session_state.pontos
+                            
+                        for j in placar_completo:
+                            if j["Jogador"].lower() == key_inspect:
+                                if "Pontos" in j: j["Pontos"] = max(0, j["Pontos"] - qtd_pontos)
+                                if "Points" in j: j["Points"] = max(0, j["Points"] - qtd_pontos)
+                                break
+                        salvar_leaderboard_completo(placar_completo)
+                        st.rerun()
             else:
                 st.info("Nenhum jogador cadastrado para inspecionar.")
                 
             st.markdown("---")
-            st.subheader("Eventos de admin")
+            st.subheader("Eventos de adimin")
             
             status_evento = f"ATIVADO ({mult_evento}X)" if mult_evento > 1 else "DESATIVADO"
             st.write(f"Multiplicador de Dinheiro: **{status_evento}**")
@@ -666,30 +618,22 @@ with st.sidebar:
         elif senha_input != "":
             st.error("Senha incorreta!")
 
-    # --- MENU DE APOIADOR / TRAPAÇAS ---
+    # =====================================================================
+    # ✨ MENU DE TRAPAÇAS (FUNÇÕES BÁSICAS PARA SI MESMO)
+    # =====================================================================
     st.markdown("---")
     st.header("⚙️ Painel de Apoiador")
-    
-    modo_apoiador_chk = st.checkbox("Exibir Opções de Apoiador", value=st.session_state.p_apoiador_ativo)
-    
-    if not modo_apoiador_chk and st.session_state.p_apoiador_ativo:
-        salvar_progresso_atual(usando_apoiador=False)
-        st.rerun()
-            
-    if modo_apoiador_chk:
+    if st.checkbox("Ativar Modo Apoiador"):
         senha_cheat = st.text_input("Digite a senha de Apoiador:", type="password", key="pwd_cheat")
         
         if len(senha_cheat) > 0 and senha_cheat == SENHA_ADMIN2:
-            if not st.session_state.p_apoiador_ativo:
-                salvar_progresso_atual(usando_apoiador=True)
-                st.rerun()
-                
-            st.success("Acesso Autorizado!")
+            st.success("Success! ")
             
             qtd_cheat = st.number_input("Quantidade de Pontos:", min_value=1, value=5000, step=500, key="qtd_cheat_val")
+            
             col_ch1, col_ch2 = st.columns(2)
             
-            if col_ch1.button("Add", use_container_width=True, key="btn_add_apoiador"):
+            if col_ch1.button("Add", use_container_width=True):
                 st.session_state.pontos += qtd_cheat
                 st.session_state.pontos_leaderboard_cache = st.session_state.pontos
                 salvar_progresso_atual()
@@ -697,11 +641,11 @@ with st.sidebar:
                 time.sleep(0.4)
                 st.rerun()
                 
-            if col_ch2.button("Rem", use_container_width=True, key="btn_rem_apoiador"):
+            if col_ch2.button("Rem", use_container_width=True):
                 st.session_state.pontos = max(0, st.session_state.pontos - qtd_cheat)
                 st.session_state.pontos_leaderboard_cache = st.session_state.pontos
                 salvar_progresso_atual()
-                st.warning(f"{qtd_cheat:,} pontos lumens removidos!")
+                st.warning(f"{qtd_cheat:,} pontos removidos!")
                 time.sleep(0.4)
                 st.rerun()
                 
@@ -834,6 +778,9 @@ if st.session_state.mundo_atual == 2:
             except Exception:
                 st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada.")
             st.caption(f"{pet['nome']} | +{calcular_bonus_pet(pet):,} por clique")
+
+def get_leaderboard_data():
+    return carregar_leaderboard()
 
 # --- CONTEÚDO MUNDO 1 ---
 if st.session_state.mundo_atual != 2:
@@ -975,6 +922,7 @@ with col1:
                     atualizar_poder_clique()  
                     st.session_state.pontos_leaderboard_cache = st.session_state.pontos
                     salvar_progresso_atual()
+                    time.sleep(0.1)
                     st.rerun()
 
 with col2:
@@ -992,23 +940,35 @@ with col2:
                     st.session_state.pontos_por_segundo += item['qtd']
                     st.session_state.pontos_leaderboard_cache = st.session_state.pontos
                     salvar_progresso_atual()
+                    time.sleep(0.1)
                     st.rerun()
 
-if st.session_state.nome_usuario:
-    atualizar_no_leaderboard(st.session_state.nome_usuario, st.session_state.pontos)
+atualizar_no_leaderboard(st.session_state.nome_usuario, st.session_state.pontos)
 
 # --- LOG DE ATUALIZAÇÕES ---
 st.markdown("---")
 st.subheader("Atualizações:")
 st.write("(1.0.0)(Beta) - Lançamento!!!")
-st.write("(2.6.0) - Adição do Sistema de Monitoramento de Painéis em Tempo Real (ADM)")
-st.write("(2.7.0) - Correção Crítica de Segurança e Validação Uniforme no Banco de Dados")
-st.write("(3.0.0)(Fix) - Reconstrução Completa da Leitura Bruta em JSON (Correção de Contas Fantasmas na Inspeção)")
+st.write("(1.0.1) - Correção de bugs")
+st.write("(1.1.2) - Adição dos Ovos, correção de bugs e preços balanceados")
+st.write("(1.2.3) - Adição de novos pets e ovos e o log de updates")
+st.write("(1.3.4) - Interface reformulada e correção de bugs")
+st.write("(1.4.5) - Sistema de salvamento de jogo, adição de novos autoclickers, adição de um botão de reset e correção de bugs")
+st.write("(1.5.6) - Adição do top global")
+st.write("(1.6.7) - Adição do painel de adimin com senha e correção de bugs")
+st.write("(1.7.8) - Adição do segundo mundo!!! novas melhorias, nova interface de melhorias, correção de bugs e muito mais!!!")
+st.write("(1.8.9) - Adição de 2 novos ovos(segundo mundo), 6 novos pets e correção de bugs")
+st.write("(2.0.0) - Adição de Sistema de login com senha e correção de bugs")
+st.write("(2.1.1) - Sistema de salvamento de top global in tempo real, correção dos botões de ban, adicionar pontos e remover pontos(ADM) e correção de bugs")
+st.write("(2.2.2) - Adição do Sistema de Mensagem Global (ADM)")
+st.write("(2.3.3) - Adição de novas funções de multiplicação de sorte e dinheiro (ADM)")
+st.write("(2.4.4) - Adição do Sistema de Inspeção de Jogadores (ADM)")
+st.write("(2.5.5) - Remoção do login toda hora que você entrar")
 
 # --- 🏆 TABELA DE CLASSIFICAÇÃO GLOBAL ---
 st.markdown("---")
 st.subheader("Top Global:")
-dados_placar = carregar_leaderboard()
+dados_placar = get_leaderboard_data()
 
 if dados_placar:
     st.table(dados_placar)
@@ -1028,7 +988,7 @@ else:
     with col_sim:
         if st.button("SIM, deletar tudo", type="primary", use_container_width=True):
             remover_jogador_leaderboard(st.session_state.nome_usuario)
-            st.query_params.clear()
+            limpar_sessao_ativa()
             
             usuarios = carregar_todos_usuarios()
             user_key = st.session_state.nome_usuario.lower()
@@ -1037,15 +997,12 @@ else:
                     "pontos": 0, "poder_base": 1, "pontos_por_segundo": 0,
                     "pet_slot_1": None, "pet_slot_2": None,
                     "pet_slot_m2_1": None, "pet_slot_m2_2": None,
-                    "ultimo_tick": time.time(), "mundo_2_desbloqueado": False, "mundo_atual": 1,
-                    "usando_admin": False, "usando_apoiador": False
+                    "ultimo_tick": time.time(), "mundo_2_desbloqueado": False, "mundo_atual": 1
                 }
                 salvar_todos_usuarios(usuarios)
                 
             st.session_state.logado = False
             st.session_state.nome_usuario = ""
-            st.session_state.p_admin_ativo = False
-            st.session_state.p_apoiador_ativo = False
             st.success("Jogo reiniciado com sucesso!")
             time.sleep(0.5)
             st.rerun()
