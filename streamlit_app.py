@@ -417,8 +417,8 @@ with st.sidebar:
                 
             # --- FERRAMENTA MSG ---
             st.markdown("---")
-            st.subheader("📢 Ferramenta 'msg'")
-            nova_msg = st.text_input("Texto do Comunicado Global:", value=aviso_sistema, placeholder="Digite o aviso geral aqui...")
+            st.subheader("Mensagem Global")
+            nova_msg = st.text_input("Texto Global:", value=aviso_sistema, placeholder="Digite o aviso geral aqui...")
             
             col_msg1, col_msg2 = st.columns(2)
             if col_msg1.button("Enviar Mensagem", use_container_width=True):
@@ -435,10 +435,10 @@ with st.sidebar:
                 
             # --- 🏆 SEÇÃO DE EVENTOS DO JOGO ---
             st.markdown("---")
-            st.subheader("🏆 Eventos")
+            st.subheader("Eventos de adimin")
             
             # Multiplicador de Dinheiro
-            status_evento = f"ATIVADO ({mult_evento}X) 🟢" if mult_evento > 1 else "DESATIVADO 🔴"
+            status_evento = f"ATIVADO ({mult_evento}X)" if mult_evento > 1 else "DESATIVADO"
             st.write(f"Multiplicador Global de Dinheiro: **{status_evento}**")
             
             col_ev2x, col_ev3x, col_ev4x, col_ev5x = st.columns(4)
@@ -467,17 +467,16 @@ with st.sidebar:
                 time.sleep(0.4)
                 st.rerun()
             
-            if st.button("Desativar Multiplicador de Dinheiro", type="secondary", use_container_width=True, disabled=(mult_evento == 1)):
+            if st.button("Desativar", type="secondary", use_container_width=True, disabled=(mult_evento == 1)):
                 config_globais["multiplicador_evento"] = 1
                 salvar_configuracoes_globais(config_globais)
                 st.warning("Multiplicador do Evento Disativado!")
                 time.sleep(0.4)
                 st.rerun()
 
-            st.markdown("---")
             # Multiplicador de Sorte (Porcentagem)
-            status_sorte = f"ATIVADO ({mult_sorte}X) 🍀" if mult_sorte > 1 else "DESATIVADO 🔴"
-            st.write(f"Multiplicador de Sorte (Chance de Pets <= 15%): **{status_sorte}**")
+            status_sorte = f"ATIVADO ({mult_sorte}X)" if mult_sorte > 1 else "DESATIVADO"
+            st.write(f"Multiplicador de Sorte: **{status_sorte}**")
 
             col_st2x, col_st3x, col_st4x, col_st5x = st.columns(4)
             if col_st2x.button("Sorte 2X", key="btn_st2", use_container_width=True, disabled=(mult_sorte == 2)):
@@ -519,13 +518,13 @@ with st.sidebar:
 st.title("Clicker Game")
 
 if aviso_sistema.strip() != "":
-    st.info(f"📢 **Mensagem Global:** {aviso_sistema}")
+    st.info(f" **Mensagem do ADM:** {aviso_sistema}")
 
 if mult_evento > 1:
-    st.warning(f"🔥 **EVENTO GLOBAL ATIVO:** Cliques concedendo o **{mult_evento}X** de Pontos em todos os mundos!")
+    st.warning(f" **EVENTO GLOBAL ATIVO:** Cliques concedendo o **{mult_evento}X** de Pontos em todos os mundos!")
 
 if mult_sorte > 1:
-    st.success(f"🍀 **EVENTO DE SORTE ATIVO:** Chances de ganhar Pets Raros (<= 15%) multiplicadas por **{mult_sorte}X**!")
+    st.success(f" **EVENTO DE SORTE ATIVO:** Chances de ganhar Pets Raros **{mult_sorte}X**!")
 
 CUSTO_MUNDO_2 = 10000000
 
@@ -625,7 +624,7 @@ if st.session_state.mundo_atual == 2:
         st.write("### Ovo Lendário:")
         st.write(f"{NOME_PET_M2_R1}: {ch1_m2_o2:.1f}% (+{BONUS_PET_M2_R1:,} Pts)")
         st.write(f"{NOME_PET_M2_R2}: {ch2_m2_o2:.1f}% (+{BONUS_PET_M2_R2:,} Pts)")
-        st.write(f"{NOME_PET_M2_R3}: **{ch3_m2_o2:.1f}%** (+{BONUS_PET_M2_R3:,} Pts) 🍀")
+        st.write(f"{NOME_PET_M2_R3}: **{ch3_m2_o2:.1f}%** (+{BONUS_PET_M2_R3:,} Pts)")
         
         desativar_m2_ovo2 = st.session_state.pontos < CUSTO_OVO_MUNDO_2_CARO or loja_em_cooldown
         
@@ -689,7 +688,7 @@ if st.session_state.mundo_atual != 2:
         st.write("### Ovo Comum:")
         st.write(f"Siruriru: {ch1_m1_o1:.1f}% (+1 Ponto)")
         st.write(f"Peppa Pig: {ch2_m1_o1:.1f}% (+5 Pontos)")
-        st.write(f"Manoel G: **{ch3_m1_o1:.1f}%** (+10 Pontos) 🍀")
+        st.write(f"Manoel G: **{ch3_m1_o1:.1f}%** (+10 Pontos)")
         
         custo_ovo1 = 100
         desativar_ovo1 = st.session_state.pontos < custo_ovo1 or loja_em_cooldown
