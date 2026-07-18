@@ -385,10 +385,6 @@ with st.sidebar:
         if len(senha_input) > 0 and senha_input == SENHA_ADMIN:
             st.success("Acesso Autorizado!")
             
-            # --- SELETOR DE PONTOS MOVIDO PARA O TOPO DAS AÇÕES ---
-            st.subheader("Configuração de Pontos")
-            qtd_pontos = st.number_input("Quantidade de pontos para Add/Rem:", min_value=1, value=1000, step=100)
-            
             st.subheader("Gerenciar Placar Global")
             
             placar_completo = []
@@ -400,84 +396,8 @@ with st.sidebar:
                     pass
 
             if placar_completo:
-                usuarios_db = carregar_todos_usuarios()
-                
-                for i, jogador in enumerate(placar_completo):
-                    name_jogador = jogador["Jogador"]
-                    key_jogador = name_jogador.lower()
-                    
-                    st.write(f"**{name_jogador}**: {jogador['Pontos']} pts")
-                    
-                    # Botões reorganizados em 3 colunas logo abaixo da configuração
-                    col_adm1, col_adm2, col_adm3 = st.columns(3)
-                    
-                    if col_adm1.button("Ban", key=f"del_{key_jogador}_{i}", use_container_width=True):
-                        if key_jogador in usuarios_db:
-                            usuarios_db[key_jogador]["dados"] = {
-                                "pontos": 0, "poder_base": 1, "pontos_por_segundo": 0,
-                                "pet_slot_1": None, "pet_slot_2": None,
-                                "pet_slot_m2_1": None, "pet_slot_m2_2": None,
-                                "ultimo_tick": time.time(), "mundo_2_desbloqueado": False, "mundo_atual": 1
-                            }
-                            salvar_todos_usuarios(usuarios_db)
-                        
-                        for j in placar_completo:
-                            if j["Jogador"].lower() == key_jogador:
-                                j["Points"] = 0
-                                if "Pontos" in j:
-                                    j["Pontos"] = 0
-                                break
-                                
-                        salvar_leaderboard_completo(placar_completo)
-
-                        if key_jogador == st.session_state.nome_usuario.lower():
-                            st.session_state.pontos = 0
-                            st.session_state.poder_base = 1
-                            st.session_state.pontos_por_segundo = 0
-                            st.session_state.pet_slot_1 = None
-                            st.session_state.pet_slot_2 = None
-                            st.session_state.pet_slot_m2_1 = None
-                            st.session_state.pet_slot_m2_2 = None
-                            st.session_state.mundo_2_desbloqueado = False
-                            st.session_state.mundo_atual = 1
-                            st.session_state.pontos_leaderboard_cache = 0
-                            atualizar_poder_clique()
-
-                        st.rerun()
-                    
-                    if col_adm2.button("Add", key=f"add_{key_jogador}_{i}", use_container_width=True):
-                        if key_jogador in usuarios_db:
-                            usuarios_db[key_jogador]["dados"]["pontos"] = max(0, usuarios_db[key_jogador]["dados"].get("pontos", 0) + qtd_pontos)
-                            salvar_todos_usuarios(usuarios_db)
-                            
-                        if key_jogador == st.session_state.nome_usuario.lower():
-                            st.session_state.pontos += qtd_pontos
-                            st.session_state.pontos_leaderboard_cache = st.session_state.pontos
-                            
-                        for j in placar_completo:
-                            if j["Jogador"].lower() == key_jogador:
-                                if "Pontos" in j: j["Pontos"] += qtd_pontos
-                                if "Points" in j: j["Points"] += qtd_pontos
-                                break
-                        salvar_leaderboard_completo(placar_completo)
-                        st.rerun()
-
-                    if col_adm3.button("Rem", key=f"rem_{key_jogador}_{i}", use_container_width=True):
-                        if key_jogador in usuarios_db:
-                            usuarios_db[key_jogador]["dados"]["pontos"] = max(0, usuarios_db[key_jogador]["dados"].get("pontos", 0) - qtd_pontos)
-                            salvar_todos_usuarios(usuarios_db)
-                            
-                        if key_jogador == st.session_state.nome_usuario.lower():
-                            st.session_state.pontos = max(0, st.session_state.pontos - qtd_pontos)
-                            st.session_state.pontos_leaderboard_cache = st.session_state.pontos
-                            
-                        for j in placar_completo:
-                            if j["Jogador"].lower() == key_jogador:
-                                if "Pontos" in j: j["Pontos"] = max(0, j["Pontos"] - qtd_pontos)
-                                if "Points" in j: j["Points"] = max(0, j["Points"] - qtd_pontos)
-                                break
-                        salvar_leaderboard_completo(placar_completo)
-                        st.rerun()
+                for jogador in placar_completo:
+                    st.write(f"🏆 **{jogador['Jogador']}**: {jogador['Pontos']} pts")
             else:
                 st.info("Nenhum jogador registrado no placar ainda.")
                 
@@ -505,7 +425,8 @@ with st.sidebar:
             lista_jogadores = [usuarios_db_inspect[k]["nome_exibicao"] for k in usuarios_db_inspect]
 
             if lista_jogadores:
-                jogador_selecionado = st.selectbox("Selecione um jogador para inspecionar:", lista_jogadores, key="inspect_select")
+                jogador_selecionado = st.selectbox("Selecione um jogador:", lista_jogadores, key="inspect_select")
+                qtd_pontos = st.number_input("Quantidade de pontos (Add/Rem):", min_value=1, value=1000, step=100)
                 
                 if st.button("Inspecionar Dados", use_container_width=True):
                     key_inspect = jogador_selecionado.lower()
@@ -538,8 +459,77 @@ with st.sidebar:
                         pm2 = dados_player.get("pet_slot_m2_2")
                         st.write(f"Slot 1: {pm1['nome']} (+{pm1['bonus']:,})" if pm1 else "Slot 3: Vazio")
                         st.write(f"Slot 2: {pm2['nome']} (+{pm2['bonus']:,})" if pm2 else "Slot 4: Vazio")
+
+                    # --- BOTÕES DE MODIFICAÇÃO (MOVIDOS PARA CÁ) ---
+                    st.markdown("⚠️ **Ações Disponíveis:**")
+                    col_adm1, col_adm2, col_adm3 = st.columns(3)
+                    
+                    if col_adm1.button("Ban", key=f"del_{key_inspect}", use_container_width=True):
+                        if key_inspect in usuarios_db_inspect:
+                            usuarios_db_inspect[key_inspect]["dados"] = {
+                                "pontos": 0, "poder_base": 1, "pontos_por_segundo": 0,
+                                "pet_slot_1": None, "pet_slot_2": None,
+                                "pet_slot_m2_1": None, "pet_slot_m2_2": None,
+                                "ultimo_tick": time.time(), "mundo_2_desbloqueado": False, "mundo_atual": 1
+                            }
+                            salvar_todos_usuarios(usuarios_db_inspect)
+                        
+                        for j in placar_completo:
+                            if j["Jogador"].lower() == key_inspect:
+                                j["Points"] = 0
+                                if "Pontos" in j: j["Pontos"] = 0
+                                break
+                        salvar_leaderboard_completo(placar_completo)
+
+                        if key_inspect == st.session_state.nome_usuario.lower():
+                            st.session_state.pontos = 0
+                            st.session_state.poder_base = 1
+                            st.session_state.pontos_por_segundo = 0
+                            st.session_state.pet_slot_1 = None
+                            st.session_state.pet_slot_2 = None
+                            st.session_state.pet_slot_m2_1 = None
+                            st.session_state.pet_slot_m2_2 = None
+                            st.session_state.mundo_2_desbloqueado = False
+                            st.session_state.mundo_atual = 1
+                            st.session_state.pontos_leaderboard_cache = 0
+                            atualizar_poder_clique()
+                        st.rerun()
+                    
+                    if col_adm2.button("Add", key=f"add_{key_inspect}", use_container_width=True):
+                        if key_inspect in usuarios_db_inspect:
+                            usuarios_db_inspect[key_inspect]["dados"]["pontos"] = max(0, usuarios_db_inspect[key_inspect]["dados"].get("pontos", 0) + qtd_pontos)
+                            salvar_todos_usuarios(usuarios_db_inspect)
+                            
+                        if key_inspect == st.session_state.nome_usuario.lower():
+                            st.session_state.pontos += qtd_pontos
+                            st.session_state.pontos_leaderboard_cache = st.session_state.pontos
+                            
+                        for j in placar_completo:
+                            if j["Jogador"].lower() == key_inspect:
+                                if "Pontos" in j: j["Pontos"] += qtd_pontos
+                                if "Points" in j: j["Points"] += qtd_pontos
+                                break
+                        salvar_leaderboard_completo(placar_completo)
+                        st.rerun()
+
+                    if col_adm3.button("Rem", key=f"rem_{key_inspect}", use_container_width=True):
+                        if key_inspect in usuarios_db_inspect:
+                            usuarios_db_inspect[key_inspect]["dados"]["pontos"] = max(0, usuarios_db_inspect[key_inspect]["dados"].get("pontos", 0) - qtd_pontos)
+                            salvar_todos_usuarios(usuarios_db_inspect)
+                            
+                        if key_inspect == st.session_state.nome_usuario.lower():
+                            st.session_state.pontos = max(0, st.session_state.pontos - qtd_pontos)
+                            st.session_state.pontos_leaderboard_cache = st.session_state.pontos
+                            
+                        for j in placar_completo:
+                            if j["Jogador"].lower() == key_inspect:
+                                if "Pontos" in j: j["Pontos"] = max(0, j["Pontos"] - qtd_pontos)
+                                if "Points" in j: j["Points"] = max(0, j["Points"] - qtd_pontos)
+                                break
+                        salvar_leaderboard_completo(placar_completo)
+                        st.rerun()
             else:
-                st.info("Nenhum jogador cadastrado para inspection.")
+                st.info("Nenhum jogador cadastrado para inspecionar.")
                 
             st.markdown("---")
             st.subheader("Eventos de adimin")
