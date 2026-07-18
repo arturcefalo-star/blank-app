@@ -128,20 +128,19 @@ def remover_jogador_leaderboard(nome):
         except Exception:
             pass
 
-# --- FUNÇÕES DO SISTEMA DE MENSAGEM GLOBAL ---
-def carregar_mensagem_global():
+# --- FUNÇÕES DO SISTEMA COMPARTILHADO (MENSAGEM E 2X GLOBAL) ---
+def carregar_dados_globais():
     if os.path.exists(AVISOS_FILE):
         try:
             with open(AVISOS_FILE, "r", encoding="utf-8") as f:
-                dados = json.load(f)
-                return dados.get("mensagem", "")
+                return json.load(f)
         except Exception:
-            return ""
-    return ""
+            return {"mensagem": "", "evento_2x": False}
+    return {"mensagem": "", "evento_2x": False}
 
-def salvar_mensagem_global(msg):
+def salvar_dados_globais(dados):
     with open(AVISOS_FILE, "w", encoding="utf-8") as f:
-        json.dump({"mensagem": msg}, f, ensure_ascii=False, indent=4)
+        json.dump(dados, f, ensure_ascii=False, indent=4)
 
 
 # --- INICIALIZAÇÃO DE SESSÃO DO LOGIN ---
@@ -279,6 +278,10 @@ if st.session_state.nome_usuario != "" and os.path.exists(LEADERBOARD_FILE):
 # COOLDOWN DE COMPRA
 loja_em_cooldown = (time.time() - st.session_state.ultima_compra) < 0.6
 
+# --- CARREGA DADOS DO EVENTO E AVISOS ---
+dados_globais = carregar_dados_globais()
+multiplicador_global = 2 if dados_globais.get("evento_2x", False) else 1
+
 # --- BARRA LATERAL: LOGOUT E PAINEL ADMIN ---
 with st.sidebar:
     st.write(f"Conectado como: **{st.session_state.nome_usuario}**")
@@ -391,19 +394,41 @@ with st.sidebar:
                 
             # --- FERRAMENTA MSG (MENSAGEM GLOBAL) ---
             st.markdown("---")
-            st.subheader("Mensagem Global:")
-            msg_atual = carregar_mensagem_global()
-            nova_msg = st.text_input("Texto do Comunicado Global:", value=msg_atual, placeholder="Digite o aviso geral aqui...")
+            st.subheader("📢 Ferramenta 'msg'")
+            nova_msg = st.text_input("Texto do Comunicado Global:", value=dados_globais.get("mensagem", ""), placeholder="Digite o aviso geral aqui...")
             
             col_msg1, col_msg2 = st.columns(2)
             if col_msg1.button("Enviar Mensagem", use_container_width=True):
-                salvar_mensagem_global(nova_msg)
+                dados_globais["mensagem"] = nova_msg
+                salvar_dados_globais(dados_globais)
                 st.success("Mensagem enviada!")
                 time.sleep(0.3)
                 st.rerun()
                 
-            if col_msg2.button("Apagar", type="secondary", use_container_width=True):
-                salvar_mensagem_global("")
+            if col_msg2.button("Apagar Msg", type="secondary", use_container_width=True):
+                dados_globais["mensagem"] = ""
+                salvar_dados_globais(dados_globais)
+                st.rerun()
+
+            # --- NOVO: BOTÃO 2X GLOBAL ---
+            st.markdown("---")
+            st.subheader("⚡ Evento Multiplicador")
+            status_evento = "ATIVADO" if dados_globais.get("evento_2x", False) else "DESATIVADO"
+            st.write(f"Status Atual: **{status_evento}**")
+            
+            col_ev1, col_ev2 = st.columns(2)
+            if col_ev1.button("2X global", type="primary", use_container_width=True):
+                dados_globais["evento_2x"] = True
+                salvar_dados_globais(dados_globais)
+                st.success("Bônus 2X Ativado para todos!")
+                time.sleep(0.3)
+                st.rerun()
+                
+            if col_ev2.button("Desativar 2X", type="secondary", use_container_width=True):
+                dados_globais["evento_2x"] = False
+                salvar_dados_globais(dados_globais)
+                st.warning("Bônus 2X Desativado.")
+                time.sleep(0.3)
                 st.rerun()
                 
         elif senha_input != "":
@@ -412,10 +437,13 @@ with st.sidebar:
 # --- CONTROLE DE VIAGEM ENTRE MUNDOS ---
 st.title("Clicker Game")
 
-# --- MONITOR DE EXIBIÇÃO DA MENSAGEM GLOBAL (PARA TODOS OS JOGADORES) ---
-aviso_sistema = carregar_mensagem_global()
+# --- MONITOR DE EXIBIÇÃO DA MENSAGEM GLOBAL & EVENTO ---
+if multiplicador_global > 1:
+    st.warning("⚡ **EVENTO GLOBAL ATIVO: GANHE 2X MAIS PONTOS POR CLIQUE!** ⚡")
+
+aviso_sistema = dados_globais.get("mensagem", "")
 if aviso_sistema.strip() != "":
-    st.info(f"Mensagem do ADM: {aviso_sistema}")
+    st.info(f"📢 **Mensagem Global:** {aviso_sistema}")
 
 CUSTO_MUNDO_2 = 10000000
 
@@ -456,8 +484,11 @@ if st.session_state.mundo_atual == 2:
     except Exception:
         pass
 
+    # Lógica de Clique Mundo 2 (Poder * Multiplicador do Mundo (2) * Multiplicador Global (1 ou 2))
+    calculo_clique_m2 = st.session_state.poder_clique * 2 * multiplicador_global
+
     if st.button("            Click Here          ", key="click_m2_btn"):
-        st.session_state.pontos += (st.session_state.poder_clique * 2)
+        st.session_state.pontos += calculo_clique_m2
         st.session_state.pontos_leaderboard_cache = st.session_state.pontos
         salvar_progresso_atual()
         st.rerun()
@@ -465,7 +496,7 @@ if st.session_state.mundo_atual == 2:
     st.metric(label="Pontos Atuais", value=st.session_state.pontos)
     
     col_status1, col_status2 = st.columns(2)
-    col_status1.write(f"**Poder de clique:** {st.session_state.poder_clique * 2} (2X)")
+    col_status1.write(f"**Poder de clique:** {calculo_clique_m2} ({2 * multiplicador_global}X)")
     col_status2.write(f"**Pontos por segundo:** {st.session_state.pontos_por_segundo}")
 
     st.markdown("---")
@@ -547,15 +578,18 @@ else:
     except Exception:
         st.caption("🎵 Arquivo 'musica67.mp3' não encontrado.")
 
+    # Lógica de Clique Mundo 1 (Poder * Multiplicador Global (1 ou 2))
+    calculo_clique_m1 = st.session_state.poder_clique * multiplicador_global
+
     if st.button("            Click Here          ", key="click_m1_btn"):
-        st.session_state.pontos += st.session_state.poder_clique
+        st.session_state.pontos += calculo_clique_m1
         st.session_state.pontos_leaderboard_cache = st.session_state.pontos
         salvar_progresso_atual()
         st.rerun()
 
     st.metric(label="Pontos Atuais", value=st.session_state.pontos)
     col_status1, col_status2 = st.columns(2)
-    col_status1.write(f"**Poder de clique:** {st.session_state.poder_clique}")
+    col_status1.write(f"**Poder de clique:** {calculo_clique_m1} ({multiplicador_global}X)")
     col_status2.write(f"**Pontos por segundo:** {st.session_state.pontos_por_segundo}")
 
     st.markdown("---")
@@ -722,6 +756,7 @@ st.write("(1.8.9) - Adição de 2 novos ovos(segundo mundo), 6 novos pets e corr
 st.write("(2.0.0) - Adição de Sistema de login com senha e correção de bugs")
 st.write("(2.1.1) - Sistema de salvamento de top global em tempo real, correção dos botões de ban, adicionar pontos e remover pontos(ADM) e correção de bugs")
 st.write("(2.2.0) - Adição do Sistema de Mensagem Global (Ferramenta 'msg') no painel de administração")
+st.write("(2.3.0) - Adição do botão '2X global' no painel ADM, multiplicando o poder de clique de todos os mundos em tempo real")
 
 # --- 🏆 TABELA DE CLASSIFICAÇÃO GLOBAL (ATUALIZADA AUTOMATICAMENTE) ---
 st.markdown("---")
