@@ -445,24 +445,29 @@ with st.sidebar:
                 salvar_configuracoes_globais(config_globais)
                 st.rerun()
 
-            # --- 🛠️ INSPEÇÃO DE JOGADORES CORRIGIDA ---
+            # --- 🛠️ INSPEÇÃO DE JOGADORES CORRIGIDA EM TEMPO REAL ---
             st.markdown("---")
             st.subheader("Inspecionar Jogador")
 
+            # Força o recarregamento do arquivo a cada ciclo de renderização
             usuarios_db_inspect = carregar_todos_usuarios()
-            # Mapeia diretamente o nome real gravado no banco garantindo que TODOS apareçam
             lista_jogadores = [usuarios_db_inspect[k]["nome_exibicao"] for k in sorted(usuarios_db_inspect.keys())]
 
             if lista_jogadores:
-                idx_inicial = 0
-                if st.session_state.jogador_sob_inspecao in lista_jogadores:
-                    idx_inicial = lista_jogadores.index(st.session_state.jogador_sob_inspecao)
+                # Resolve o bug de estado salvando a seleção diretamente por chave de controle ou índice válido
+                if st.session_state.jogador_sob_inspecao not in lista_jogadores:
+                    st.session_state.jogador_sob_inspecao = lista_jogadores[0]
                 
-                jogador_selecionado = st.selectbox("Selecione um jogador:", lista_jogadores, index=idx_inicial, key="inspect_select")
+                idx_inicial = lista_jogadores.index(st.session_state.jogador_sob_inspecao)
                 
-                if st.button("Inspecionar Dados", use_container_width=True):
-                    st.session_state.jogador_sob_inspecao = jogador_selecionado
-                    st.rerun()
+                jogador_selecionado = st.selectbox(
+                    "Selecione um jogador:", 
+                    options=lista_jogadores, 
+                    index=idx_inicial, 
+                    key=f"inspect_select_live_{len(lista_jogadores)}" # Chave dinâmica reconstrói o selectbox ao mudar tamanho
+                )
+                
+                st.session_state.jogador_sob_inspecao = jogador_selecionado
 
                 if st.session_state.jogador_sob_inspecao:
                     alvo_atual = st.session_state.jogador_sob_inspecao
@@ -988,7 +993,7 @@ st.subheader("Atualizações:")
 st.write("(1.0.0)(Beta) - Lançamento!!!")
 st.write("(2.6.0) - Adição do Sistema de Monitoramento de Painéis em Tempo Real (ADM)")
 st.write("(2.7.0) - Correção Crítica de Segurança e Validação Uniforme no Banco de Dados")
-st.write("(2.8.0) - Correção do Seletor de Inspeção para exibir 100% das contas registradas")
+st.write("(2.9.0) - Reconstrução Dinâmica de Chave no Seletor de Inspeção para atualização 100% em Tempo Real")
 
 # --- 🏆 TABELA DE CLASSIFICAÇÃO GLOBAL ---
 st.markdown("---")
