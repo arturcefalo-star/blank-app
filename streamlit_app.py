@@ -84,7 +84,7 @@ def carregar_leaderboard():
                 pontos = jogador.get("Pontos", jogador.get("Points", 0))
                 
                 if nome.lower() not in usuarios_unicos or pontos > usuarios_unicos[nome.lower()]["Pontos"]:
-                    usuarios_unicos[nome.lower()] = {"Jogador": name, "Pontos": pontos}
+                    usuarios_unicos[nome.lower()] = {"Jogador": nome, "Pontos": pontos}
             
             return sorted(usuarios_unicos.values(), key=lambda x: x["Pontos"], reverse=True)[:5]
         except Exception:
@@ -364,14 +364,8 @@ with st.sidebar:
 
                         st.rerun()
                     
+                    # --- BOTÃO ADD CORRIGIDO (SALVA NA DATABASE NA HORA E DA REFRESH) ---
                     if col_adm3.button("Add", key=f"add_{key_jogador}_{i}"):
-                        for j in placar_completo:
-                            if j["Jogador"].lower() == key_jogador:
-                                if "Pontos" in j: j["Pontos"] += qtd_pontos
-                                if "Points" in j: j["Points"] += qtd_pontos
-                                break
-                        salvar_leaderboard_completo(placar_completo)
-                        
                         if key_jogador in usuarios_db:
                             usuarios_db[key_jogador]["dados"]["pontos"] = max(0, usuarios_db[key_jogador]["dados"].get("pontos", 0) + qtd_pontos)
                             salvar_todos_usuarios(usuarios_db)
@@ -379,16 +373,17 @@ with st.sidebar:
                         if key_jogador == st.session_state.nome_usuario.lower():
                             st.session_state.pontos += qtd_pontos
                             st.session_state.pontos_leaderboard_cache = st.session_state.pontos
-                        st.rerun()
-
-                    if col_adm4.button("Rem", key=f"rem_{key_jogador}_{i}"):
+                            
                         for j in placar_completo:
                             if j["Jogador"].lower() == key_jogador:
-                                if "Pontos" in j: j["Pontos"] = max(0, j["Pontos"] - qtd_pontos)
-                                if "Points" in j: j["Points"] = max(0, j["Points"] - qtd_pontos)
+                                if "Pontos" in j: j["Pontos"] += qtd_pontos
+                                if "Points" in j: j["Points"] += qtd_pontos
                                 break
                         salvar_leaderboard_completo(placar_completo)
-                        
+                        st.rerun()
+
+                    # --- BOTÃO REM CORRIGIDO (SALVA NA DATABASE NA HORA E DA REFRESH) ---
+                    if col_adm4.button("Rem", key=f"rem_{key_jogador}_{i}"):
                         if key_jogador in usuarios_db:
                             usuarios_db[key_jogador]["dados"]["pontos"] = max(0, usuarios_db[key_jogador]["dados"].get("pontos", 0) - qtd_pontos)
                             salvar_todos_usuarios(usuarios_db)
@@ -396,6 +391,13 @@ with st.sidebar:
                         if key_jogador == st.session_state.nome_usuario.lower():
                             st.session_state.pontos = max(0, st.session_state.pontos - qtd_pontos)
                             st.session_state.pontos_leaderboard_cache = st.session_state.pontos
+                            
+                        for j in placar_completo:
+                            if j["Jogador"].lower() == key_jogador:
+                                if "Pontos" in j: j["Pontos"] = max(0, j["Pontos"] - qtd_pontos)
+                                if "Points" in j: j["Points"] = max(0, j["Points"] - qtd_pontos)
+                                break
+                        salvar_leaderboard_completo(placar_completo)
                         st.rerun()
             else:
                 st.info("Nenhum jogador registrado no placar ainda.")
@@ -754,7 +756,7 @@ with col2:
             desativado = st.session_state.pontos < item['custo'] or loja_em_cooldown
             key_btn = f"p_{st.session_state.mundo_atual}_{i}"
 
-            if st.button(texto, key=key_btn, disabled=desativado, use_container_width=True):
+            if st.button(texto, key=key_btn, disabled=desativated, use_container_width=True):
                 if st.session_state.pontos >= item['custo']:
                     st.session_state.ultima_compra = time.time()
                     st.session_state.pontos -= item['custo']
