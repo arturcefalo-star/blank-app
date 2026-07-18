@@ -394,7 +394,7 @@ with st.sidebar:
                 
             # --- FERRAMENTA MSG (MENSAGEM GLOBAL) ---
             st.markdown("---")
-            st.subheader("📢 Ferramenta 'msg'")
+            st.subheader("Mensagem Global")
             nova_msg = st.text_input("Texto do Comunicado Global:", value=dados_globais.get("mensagem", ""), placeholder="Digite o aviso geral aqui...")
             
             col_msg1, col_msg2 = st.columns(2)
@@ -412,7 +412,7 @@ with st.sidebar:
 
             # --- NOVO: BOTÃO 2X GLOBAL ---
             st.markdown("---")
-            st.subheader("⚡ Evento Multiplicador")
+            st.subheader("Eventos de Adimin:")
             status_evento = "ATIVADO" if dados_globais.get("evento_2x", False) else "DESATIVADO"
             st.write(f"Status Atual: **{status_evento}**")
             
@@ -443,7 +443,7 @@ if multiplicador_global > 1:
 
 aviso_sistema = dados_globais.get("mensagem", "")
 if aviso_sistema.strip() != "":
-    st.info(f"📢 **Mensagem Global:** {aviso_sistema}")
+    st.info(f"**Mensagem Global:** {aviso_sistema}")
 
 CUSTO_MUNDO_2 = 10000000
 
