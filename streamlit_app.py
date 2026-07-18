@@ -391,7 +391,7 @@ with st.sidebar:
                 
             # --- FERRAMENTA MSG (MENSAGEM GLOBAL) ---
             st.markdown("---")
-            st.subheader("📢 Ferramenta 'msg'")
+            st.subheader("Mensagem Global:")
             msg_atual = carregar_mensagem_global()
             nova_msg = st.text_input("Texto do Comunicado Global:", value=msg_atual, placeholder="Digite o aviso geral aqui...")
             
