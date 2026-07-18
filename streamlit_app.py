@@ -397,7 +397,7 @@ with st.sidebar:
 
             if placar_completo:
                 for jogador in placar_completo:
-                    st.write(f"🏆 **{jogador['Jogador']}**: {jogador['Pontos']} pts")
+                    st.write(f" **{jogador['Jogador']}**: {jogador['Pontos']} pts")
             else:
                 st.info("Nenhum jogador registrado no placar ainda.")
                 
@@ -469,7 +469,7 @@ with st.sidebar:
                     st.markdown("---")
                     qtd_pontos = st.number_input("Quantidade de pontos (Add/Rem):", min_value=1, value=1000, step=100, key="qtd_pontos_adm")
 
-                    st.markdown("⚠️ **Ações Disponíveis:**")
+                    st.markdown(" **Ações Disponíveis:**")
                     col_adm1, col_adm2, col_adm3 = st.columns(3)
                     
                     if col_adm1.button("Ban", key=f"del_{key_inspect}", use_container_width=True):
