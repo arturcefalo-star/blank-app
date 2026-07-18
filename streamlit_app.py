@@ -426,13 +426,19 @@ with st.sidebar:
 
             if lista_jogadores:
                 jogador_selecionado = st.selectbox("Selecione um jogador:", lista_jogadores, key="inspect_select")
-                qtd_pontos = st.number_input("Quantidade de pontos (Add/Rem):", min_value=1, value=1000, step=100)
                 
+                if "jogador_sob_inspecao" not in st.session_state:
+                    st.session_state.jogador_sob_inspecao = None
+
                 if st.button("Inspecionar Dados", use_container_width=True):
-                    key_inspect = jogador_selecionado.lower()
+                    st.session_state.jogador_sob_inspecao = jogador_selecionado
+
+                if st.session_state.jogador_sob_inspecao:
+                    alvo_atual = st.session_state.inspect_select
+                    key_inspect = alvo_atual.lower()
                     dados_player = usuarios_db_inspect[key_inspect]["dados"]
                     
-                    st.markdown(f"### Status de: **{jogador_selecionado}**")
+                    st.markdown(f"### Status de: **{alvo_atual}**")
                     
                     col_ins1, col_ins2, col_ins3 = st.columns(3)
                     col_ins1.metric("Pontos", f"{dados_player.get('pontos', 0):,}")
@@ -460,7 +466,9 @@ with st.sidebar:
                         st.write(f"Slot 1: {pm1['nome']} (+{pm1['bonus']:,})" if pm1 else "Slot 3: Vazio")
                         st.write(f"Slot 2: {pm2['nome']} (+{pm2['bonus']:,})" if pm2 else "Slot 4: Vazio")
 
-                    # --- BOTÕES DE MODIFICAÇÃO (MOVIDOS PARA CÁ) ---
+                    st.markdown("---")
+                    qtd_pontos = st.number_input("Quantidade de pontos (Add/Rem):", min_value=1, value=1000, step=100, key="qtd_pontos_adm")
+
                     st.markdown("⚠️ **Ações Disponíveis:**")
                     col_adm1, col_adm2, col_adm3 = st.columns(3)
                     
