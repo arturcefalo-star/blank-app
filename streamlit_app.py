@@ -59,9 +59,16 @@ def salvar_progresso_atual(usando_admin=None, usando_apoiador=None):
         username_key = st.session_state.nome_usuario.lower()
         
         if username_key in usuarios:
+            # Preserva ou atualiza dinamicamente o status dos painéis no JSON global
             status_adm = usando_admin if usando_admin is not None else usuarios[username_key]["dados"].get("usando_admin", False)
             status_apo = usando_apoiador if usando_apoiador is not None else usuarios[username_key]["dados"].get("usando_apoiador", False)
             
+            # Força o estado atual da sessão a refletir o que foi pedido para salvar
+            if usando_admin is not None:
+                st.session_state.p_admin_ativo = usando_admin
+            if usando_apoiador is not None:
+                st.session_state.p_apoiador_ativo = usando_apoiador
+
             usuarios[username_key]["dados"] = {
                 "pontos": st.session_state.pontos,
                 "poder_base": st.session_state.poder_base,
@@ -73,8 +80,8 @@ def salvar_progresso_atual(usando_admin=None, usando_apoiador=None):
                 "ultimo_tick": st.session_state.ultimo_tick,
                 "mundo_2_desbloqueado": st.session_state.mundo_2_desbloqueado,
                 "mundo_atual": st.session_state.mundo_atual,
-                "usando_admin": status_adm,
-                "usando_apoiador": status_apo
+                "usando_admin": st.session_state.get("p_admin_ativo", False),
+                "usando_apoiador": st.session_state.get("p_apoiador_ativo", False)
             }
             salvar_todos_usuarios(usuarios)
             atualizar_no_leaderboard(st.session_state.nome_usuario, st.session_state.pontos)
@@ -200,6 +207,8 @@ if not st.session_state.logado:
             st.session_state.mundo_2_desbloqueado = dados.get("mundo_2_desbloqueado", False)
             st.session_state.mundo_atual = dados.get("mundo_atual", 1)
             st.session_state.pontos_leaderboard_cache = dados.get("pontos", 0)
+            st.session_state.p_admin_ativo = dados.get("usando_admin", False)
+            st.session_state.p_apoiador_ativo = dados.get("usando_apoiador", False)
             st.session_state.nome_usuario = usuarios[usuario_salvo]["nome_exibicao"]
             st.session_state.logado = True
 
@@ -233,6 +242,8 @@ if not st.session_state.logado:
                 st.session_state.mundo_2_desbloqueado = dados.get("mundo_2_desbloqueado", False)
                 st.session_state.mundo_atual = dados.get("mundo_atual", 1)
                 st.session_state.pontos_leaderboard_cache = dados.get("pontos", 0)
+                st.session_state.p_admin_ativo = dados.get("usando_admin", False)
+                st.session_state.p_apoiador_ativo = dados.get("usando_apoiador", False)
                 
                 st.session_state.nome_usuario = usuarios[user_key]["nome_exibicao"]
                 st.session_state.logado = True
@@ -292,6 +303,12 @@ if "pontos_leaderboard_cache" not in st.session_state:
     st.session_state.pontos_leaderboard_cache = st.session_state.pontos
 if "ultimo_tick" not in st.session_state:
     st.session_state.ultimo_tick = time.time()
+if "p_admin_ativo" not in st.session_state:
+    st.session_state.p_admin_ativo = False
+if "p_apoiador_ativo" not in st.session_state:
+    st.session_state.p_apoiador_ativo = False
+if "jogador_sob_inspecao" not in st.session_state:
+    st.session_state.jogador_sob_inspecao = None
 
 config_globais = carregar_configuracoes_globais()
 aviso_sistema = config_globais.get("mensagem", "")
@@ -378,6 +395,8 @@ loja_em_cooldown = (time.time() - st.session_state.ultima_compra) < 0.6
 with st.sidebar:
     st.write(f"Conectado como: **{st.session_state.nome_usuario}**")
     if st.button("Sair da Conta (Logout)", type="secondary"):
+        st.session_state.p_admin_ativo = False
+        st.session_state.p_apoiador_ativo = False
         salvar_progresso_atual(usando_admin=False, usando_apoiador=False)
         limpar_sessao_ativa()  
         st.session_state.logado = False
@@ -386,29 +405,26 @@ with st.sidebar:
         
     st.markdown("---")
     st.header("⚙️ Painel de Admin")
-    modo_admin_chk = st.checkbox("Ativar Modo Administrador")
+    modo_admin_chk = st.checkbox("Ativar Modo Administrador", value=st.session_state.p_admin_ativo)
     
-    if not modo_admin_chk:
-        usuarios_db = carregar_todos_usuarios()
-        ukey = st.session_state.nome_usuario.lower()
-        if ukey in usuarios_db and usuarios_db[ukey]["dados"].get("usando_admin", False):
-            salvar_progresso_atual(usando_admin=False)
-            st.rerun()
+    if not modo_admin_chk and st.session_state.p_admin_ativo:
+        st.session_state.p_admin_ativo = False
+        salvar_progresso_atual(usando_admin=False)
+        st.rerun()
             
     if modo_admin_chk:
         senha_input = st.text_input("Digite a senha de Admin:", type="password", key="pwd_admin")
         
         if len(senha_input) > 0 and senha_input == SENHA_ADMIN:
-            usuarios_db = carregar_todos_usuarios()
-            ukey = st.session_state.nome_usuario.lower()
-            if ukey in usuarios_db and not usuarios_db[ukey]["dados"].get("usando_admin", False):
+            if not st.session_state.p_admin_ativo:
+                st.session_state.p_admin_ativo = True
                 salvar_progresso_atual(usando_admin=True)
                 st.rerun()
                 
             st.success("Success!")
             
             # =====================================================================
-            # 🕵️‍♂️ MONITOR DE UTILIZADORES DOS PAINÉIS (EXCLUSIVO DO ADM)
+            # 👁️ MONITOR DE UTILIZADORES DOS PAINÉIS
             # =====================================================================
             st.markdown("---")
             st.subheader("👁️ Monitor de Painéis")
@@ -469,20 +485,22 @@ with st.sidebar:
             st.subheader("Inspecionar Jogador")
 
             usuarios_db_inspect = carregar_todos_usuarios()
-            # FIX: Pega os nomes de exibição salvos no banco de dados mapeados de forma correta
             lista_jogadores = [usuarios_db_inspect[k]["nome_exibicao"] for k in usuarios_db_inspect]
 
             if lista_jogadores:
-                jogador_selecionado = st.selectbox("Selecione um jogador:", lista_jogadores, key="inspect_select")
+                # Corrigido index dinâmico para evitar bugs ao recarregar a lista
+                idx_inicial = 0
+                if st.session_state.jogador_sob_inspecao in lista_jogadores:
+                    idx_inicial = lista_jogadores.index(st.session_state.jogador_sob_inspecao)
                 
-                if "jogador_sob_inspecao" not in st.session_state:
-                    st.session_state.jogador_sob_inspecao = None
-
+                jogador_selecionado = st.selectbox("Selecione um jogador:", lista_jogadores, index=idx_inicial, key="inspect_select")
+                
                 if st.button("Inspecionar Dados", use_container_width=True):
                     st.session_state.jogador_sob_inspecao = jogador_selecionado
+                    st.rerun()
 
                 if st.session_state.jogador_sob_inspecao:
-                    alvo_atual = st.session_state.inspect_select
+                    alvo_atual = st.session_state.jogador_sob_inspecao
                     key_inspect = alvo_atual.lower()
                     
                     if key_inspect in usuarios_db_inspect:
@@ -550,7 +568,10 @@ with st.sidebar:
                                 st.session_state.mundo_2_desbloqueado = False
                                 st.session_state.mundo_atual = 1
                                 st.session_state.pontos_leaderboard_cache = 0
+                                st.session_state.p_admin_ativo = False
+                                st.session_state.p_apoiador_ativo = False
                                 atualizar_poder_clique()
+                            st.session_state.jogador_sob_inspecao = None
                             st.rerun()
                         
                         if col_adm2.button("Add", key=f"add_{key_inspect}", use_container_width=True):
@@ -666,26 +687,23 @@ with st.sidebar:
             st.error("Senha incorreta!")
 
     # =====================================================================
-    # ✨ MENU DE TRAPAÇAS (FIX: CORRIGIDO COMPLETAMENTE O SISTEMA DE APOIADOR)
+    # ✨ MENU DE TRAPAÇAS (FIX: SALVAMENTO EM TEMPO REAL)
     # =====================================================================
     st.markdown("---")
     st.header("⚙️ Painel de Apoiador")
-    modo_apoiador_chk = st.checkbox("Ativar Modo Apoiador")
+    modo_apoiador_chk = st.checkbox("Ativar Modo Apoiador", value=st.session_state.p_apoiador_ativo)
     
-    if not modo_apoiador_chk:
-        usuarios_db = carregar_todos_usuarios()
-        ukey = st.session_state.nome_usuario.lower()
-        if ukey in usuarios_db and usuarios_db[ukey]["dados"].get("usando_apoiador", False):
-            salvar_progresso_atual(usando_apoiador=False)
-            st.rerun()
+    if not modo_apoiador_chk and st.session_state.p_apoiador_ativo:
+        st.session_state.p_apoiador_ativo = False
+        salvar_progresso_atual(usando_apoiador=False)
+        st.rerun()
             
     if modo_apoiador_chk:
         senha_cheat = st.text_input("Digite a senha de Apoiador:", type="password", key="pwd_cheat")
         
         if len(senha_cheat) > 0 and senha_cheat == SENHA_ADMIN2:
-            usuarios_db = carregar_todos_usuarios()
-            ukey = st.session_state.nome_usuario.lower()
-            if ukey in usuarios_db and not usuarios_db[ukey]["dados"].get("usando_apoiador", False):
+            if not st.session_state.p_apoiador_ativo:
+                st.session_state.p_apoiador_ativo = True
                 salvar_progresso_atual(usando_apoiador=True)
                 st.rerun()
                 
@@ -707,7 +725,7 @@ with st.sidebar:
                 st.session_state.pontos = max(0, st.session_state.pontos - qtd_cheat)
                 st.session_state.pontos_leaderboard_cache = st.session_state.pontos
                 salvar_progresso_atual()
-                st.warning(f"{qtd_cheat:,} pontos removidos!")
+                st.warning(f"{qtd_cheat:,} pontos lumens removidos!")
                 time.sleep(0.4)
                 st.rerun()
                 
@@ -1067,6 +1085,8 @@ else:
                 
             st.session_state.logado = False
             st.session_state.nome_usuario = ""
+            st.session_state.p_admin_ativo = False
+            st.session_state.p_apoiador_ativo = False
             st.success("Jogo reiniciado com sucesso!")
             time.sleep(0.5)
             st.rerun()
