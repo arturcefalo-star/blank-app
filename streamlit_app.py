@@ -256,7 +256,6 @@ if not st.session_state.logado:
                     }
                 }
                 salvar_todos_usuarios(usuarios)
-                # Força a criação do registro inicial também no leaderboard para consistência global
                 atualizar_no_leaderboard(reg_user, 0)
                 st.success("Conta criada com sucesso! Faça login na aba ao lado.")
                 
@@ -281,7 +280,7 @@ if "p_admin_ativo" not in st.session_state:
 if "p_apoiador_ativo" not in st.session_state:
     st.session_state.p_apoiador_ativo = False
 if "jogador_sob_inspecao" not in st.session_state:
-    st.session_state.jogador_sob_inspecao = None
+    st.session_state.jogador_sob_inspecao = ""
 
 config_globais = carregar_configuracoes_globais()
 aviso_sistema = config_globais.get("mensagem", "")
@@ -312,7 +311,7 @@ def calcular_chances_ovo(c1, c2, c3_base):
     c2_atual = (c2 / soma_base_comuns) * restante
     return c1_atual, c2_atual, c3_atual
 
-# Processamento passivo global de pontos baseado no tempo corrido real
+# Processamento passivo global de pontos
 agora = time.time()
 tempo_passado = agora - st.session_state.ultimo_tick
 if tempo_passado >= 1.0:
@@ -346,7 +345,7 @@ def renderizar_area_clique():
     st.write(f"**Pontos por segundo:** {st.session_state.pontos_por_segundo}")
 
 
-# Sincronização em background segura do placar
+# Sincronização em background do placar
 if st.session_state.nome_usuario != "" and os.path.exists(LEADERBOARD_FILE):
     try:
         with open(LEADERBOARD_FILE, "r", encoding="utf-8") as f:
@@ -361,7 +360,10 @@ if st.session_state.nome_usuario != "" and os.path.exists(LEADERBOARD_FILE):
     except Exception:
         pass
 
-loja_em_cooldown = (time.time() - st.session_state.ultima_compra) < 0.6
+# 🟢 FIX COOLDOWN: O Cooldown agora limpa dinamicamente ao invés de travar a thread
+loja_em_cooldown = False
+if (time.time() - st.session_state.ultima_compra) < 0.3:
+    loja_em_cooldown = True
 
 # --- BARRA LATERAL: LOGOUT, PAINEL ADMIN E TRAPAÇAS ---
 with st.sidebar:
@@ -447,36 +449,26 @@ with st.sidebar:
                 salvar_configuracoes_globais(config_globais)
                 st.rerun()
 
-            # --- 🛠️ INSPEÇÃO DE JOGADORES 100% CORRIGIDA EM TEMPO REAL ---
+            # --- 🛠️ INSPEÇÃO DE JOGADORES - FIX DA SELEÇÃO ESTÁTICA ---
             st.markdown("---")
             st.subheader("Inspecionar Jogador")
 
-            # Varre o banco bruto em tempo real e captura o nome exato de exibição configurado no registro
             usuarios_db_inspect = carregar_todos_usuarios()
-            lista_jogadores = []
-            for chave_username in usuarios_db_inspect:
-                if "nome_exibicao" in usuarios_db_inspect[chave_username]:
-                    lista_jogadores.append(usuarios_db_inspect[chave_username]["nome_exibicao"])
-            
-            # Ordena alfabeticamente para facilitar a busca do Admin
-            lista_jogadores = sorted(list(set(lista_jogadores)))
+            lista_jogadores = sorted(list(set([usuarios_db_inspect[k]["nome_exibicao"] for k in usuarios_db_inspect if "nome_exibicao" in usuarios_db_inspect])))
 
             if lista_jogadores:
-                # Se o jogador selecionado sumir ou o estado resetar, volta para o primeiro da lista de forma segura
+                # Mantém o jogador selecionado sem resetar o selectbox toda vez que a lista atualiza
                 if st.session_state.jogador_sob_inspecao not in lista_jogadores:
                     st.session_state.jogador_sob_inspecao = lista_jogadores[0]
                 
-                idx_inicial = lista_jogadores.index(st.session_state.jogador_sob_inspecao)
+                idx_estatico = lista_jogadores.index(st.session_state.jogador_sob_inspecao)
                 
-                # A chave dinâmica inclui a soma total de cadastros. Se uma conta nova entrar, o widget reconstrói na hora.
-                total_contas_registradas = len(lista_jogadores)
                 jogador_selecionado = st.selectbox(
                     "Selecione um jogador:", 
                     options=lista_jogadores, 
-                    index=idx_inicial, 
-                    key=f"live_inspect_widget_v3_{total_contas_registradas}"
+                    index=idx_estatico, 
+                    key="live_inspect_static_v4"
                 )
-                
                 st.session_state.jogador_sob_inspecao = jogador_selecionado
 
                 if st.session_state.jogador_sob_inspecao:
@@ -488,36 +480,37 @@ with st.sidebar:
                         
                         st.markdown(f"### Status de: **{alvo_atual}**")
                         
+                        # Calculate total click power from targeted player for clarity
+                        p_base_alvo = dados_player.get("poder_base", 1)
+                        b1 = calcular_bonus_pet(dados_player.get("pet_slot_1"))
+                        b2 = calcular_bonus_pet(dados_player.get("pet_slot_2"))
+                        b3 = calcular_bonus_pet(dados_player.get("pet_slot_m2_1"))
+                        b4 = calcular_bonus_pet(dados_player.get("pet_slot_m2_2"))
+                        p_total_alvo = p_base_alvo + b1 + b2 + b3 + b4
+                        
                         col_ins1, col_ins2, col_ins3 = st.columns(3)
                         col_ins1.metric("Pontos", f"{dados_player.get('pontos', 0):,}")
-                        col_ins2.metric("Poder Base", f"{dados_player.get('poder_base', 1):,}")
-                        col_ins3.metric("Pontos/Seg", f"{dados_player.get('pontos_por_segundo', 0):,}")
+                        col_ins2.metric("Poder Base", f"{p_base_alvo:,}")
+                        col_ins3.metric("Clique Total", f"{p_total_alvo:,}")
+                        
+                        st.metric("Pontos/Seg", f"{dados_player.get('pontos_por_segundo', 0):,}")
                         
                         mundo_txt = "Mundo 2" if dados_player.get("mundo_atual", 1) == 2 else "Mundo 1"
-                        m2_liberado = "Sim" if dados_player.get("mundo_2_desbloqueado", False) else "Não"
-                        st.write(f" **Mundo Atual:** {mundo_txt} | **Mundo 2 Desbloqueado?** {m2_liberado}")
+                        st.write(f" **Mundo:** {mundo_txt}")
                         
                         st.markdown(" **Pets Equipados:**")
-                        col_p1, col_p2 = st.columns(2)
-                        
-                        with col_p1:
-                            st.write("**Mundo 1 Slots:**")
-                            p1 = dados_player.get("pet_slot_1")
-                            p2 = dados_player.get("pet_slot_2")
-                            st.write(f"Slot 1: {p1['nome']} (+{p1['bonus']:,})" if p1 else "Slot 1: Vazio")
-                            st.write(f"Slot 2: {p2['nome']} (+{p2['bonus']:,})" if p2 else "Slot 2: Vazio")
-                            
-                        with col_p2:
-                            st.write("**Mundo 2 Slots:**")
-                            pm1 = dados_player.get("pet_slot_m2_1")
-                            pm2 = dados_player.get("pet_slot_m2_2")
-                            st.write(f"Slot 1: {pm1['nome']} (+{pm1['bonus']:,})" if pm1 else "Slot 3: Vazio")
-                            st.write(f"Slot 2: {pm2['nome']} (+{pm2['bonus']:,})" if pm2 else "Slot 4: Vazio")
+                        p1 = dados_player.get("pet_slot_1")
+                        p2 = dados_player.get("pet_slot_2")
+                        pm1 = dados_player.get("pet_slot_m2_1")
+                        pm2 = dados_player.get("pet_slot_m2_2")
+                        st.text(f"• M1 S1: {p1['nome'] if p1 else 'Vazio'}")
+                        st.text(f"• M1 S2: {p2['nome'] if p2 else 'Vazio'}")
+                        st.text(f"• M2 S1: {pm1['nome'] if pm1 else 'Vazio'}")
+                        st.text(f"• M2 S2: {pm2['nome'] if pm2 else 'Vazio'}")
 
                         st.markdown("---")
                         qtd_pontos = st.number_input("Quantidade de pontos (Add/Rem):", min_value=1, value=1000, step=100, key="qtd_pontos_adm")
 
-                        st.markdown(" **Ações Disponíveis:**")
                         col_adm1, col_adm2, col_adm3 = st.columns(3)
                         
                         if col_adm1.button("Ban", key=f"del_{key_inspect}", use_container_width=True):
@@ -529,61 +522,23 @@ with st.sidebar:
                                 "usando_admin": False, "usando_apoiador": False
                             }
                             salvar_todos_usuarios(usuarios_db_inspect)
-                            
-                            for j in placar_completo:
-                                if j["Jogador"].lower() == key_inspect:
-                                    j["Points"] = 0
-                                    if "Pontos" in j: j["Pontos"] = 0
-                                    break
-                            salvar_leaderboard_completo(placar_completo)
-
-                            if key_inspect == st.session_state.nome_usuario.lower():
-                                st.session_state.pontos = 0
-                                st.session_state.poder_base = 1
-                                st.session_state.pontos_por_segundo = 0
-                                st.session_state.pet_slot_1 = None
-                                st.session_state.pet_slot_2 = None
-                                st.session_state.pet_slot_m2_1 = None
-                                st.session_state.pet_slot_m2_2 = None
-                                st.session_state.mundo_2_desbloqueado = False
-                                st.session_state.mundo_atual = 1
-                                st.session_state.pontos_leaderboard_cache = 0
-                                st.session_state.p_admin_ativo = False
-                                st.session_state.p_apoiador_ativo = False
-                                atualizar_poder_clique()
-                            st.session_state.jogador_sob_inspecao = None
+                            remover_jogador_leaderboard(alvo_atual)
                             st.rerun()
                         
                         if col_adm2.button("Add", key=f"add_{key_inspect}", use_container_width=True):
-                            usuarios_db_inspect[key_inspect]["dados"]["pontos"] = max(0, usuarios_db_inspect[key_inspect]["dados"].get("pontos", 0) + qtd_pontos)
+                            usuarios_db_inspect[key_inspect]["dados"]["pontos"] += qtd_pontos
                             salvar_todos_usuarios(usuarios_db_inspect)
-                                
                             if key_inspect == st.session_state.nome_usuario.lower():
                                 st.session_state.pontos += qtd_pontos
-                                st.session_state.pontos_leaderboard_cache = st.session_state.pontos
-                                
-                            for j in placar_completo:
-                                if j["Jogador"].lower() == key_inspect:
-                                    if "Pontos" in j: j["Pontos"] += qtd_pontos
-                                    if "Points" in j: j["Points"] += qtd_pontos
-                                    break
-                            salvar_leaderboard_completo(placar_completo)
+                            atualizar_no_leaderboard(alvo_atual, usuarios_db_inspect[key_inspect]["dados"]["pontos"])
                             st.rerun()
 
                         if col_adm3.button("Rem", key=f"rem_{key_inspect}", use_container_width=True):
-                            usuarios_db_inspect[key_inspect]["dados"]["pontos"] = max(0, usuarios_db_inspect[key_inspect]["dados"].get("pontos", 0) - qtd_pontos)
+                            usuarios_db_inspect[key_inspect]["dados"]["pontos"] = max(0, usuarios_db_inspect[key_inspect]["dados"]["pontos"] - qtd_pontos)
                             salvar_todos_usuarios(usuarios_db_inspect)
-                                
                             if key_inspect == st.session_state.nome_usuario.lower():
                                 st.session_state.pontos = max(0, st.session_state.pontos - qtd_pontos)
-                                st.session_state.pontos_leaderboard_cache = st.session_state.pontos
-                                
-                            for j in placar_completo:
-                                if j["Jogador"].lower() == key_inspect:
-                                    if "Pontos" in j: j["Pontos"] = max(0, j["Pontos"] - qtd_pontos)
-                                    if "Points" in j: j["Points"] = max(0, j["Points"] - qtd_pontos)
-                                    break
-                            salvar_leaderboard_completo(placar_completo)
+                            atualizar_no_leaderboard(alvo_atual, usuarios_db_inspect[key_inspect]["dados"]["pontos"])
                             st.rerun()
             else:
                 st.info("Nenhum jogador cadastrado para inspecionar.")
@@ -591,122 +546,39 @@ with st.sidebar:
             st.markdown("---")
             st.subheader("Eventos de admin")
             
-            status_evento = f"ATIVADO ({mult_evento}X)" if mult_evento > 1 else "DESATIVADO"
-            st.write(f"Multiplicador de Dinheiro: **{status_evento}**")
-            
-            col_ev2x, col_ev3x, col_ev4x, col_ev5x = st.columns(4)
-            if col_ev2x.button("Ativar 2X", key="btn_ev2", use_container_width=True, disabled=(mult_evento == 2)):
+            col_ev2x, col_ev3x = st.columns(2)
+            if col_ev2x.button("Ativar 2X", key="btn_ev2"):
                 config_globais["multiplicador_evento"] = 2
                 salvar_configuracoes_globais(config_globais)
-                st.success("Evento 2X Ativado!")
-                time.sleep(0.4)
                 st.rerun()
-            if col_ev3x.button("Ativar 3X", key="btn_ev3", use_container_width=True, disabled=(mult_evento == 3)):
+            if col_ev3x.button("Ativar 3X", key="btn_ev3"):
                 config_globais["multiplicador_evento"] = 3
                 salvar_configuracoes_globais(config_globais)
-                st.success("Evento 3X Ativado!")
-                time.sleep(0.4)
-                st.rerun()
-            if col_ev4x.button("Ativar 4X", key="btn_ev4", use_container_width=True, disabled=(mult_evento == 4)):
-                config_globais["multiplicador_evento"] = 4
-                salvar_configuracoes_globais(config_globais)
-                st.success("Evento 4X Ativado!")
-                time.sleep(0.4)
-                st.rerun()
-            if col_ev5x.button("Ativar 5X", key="btn_ev5", use_container_width=True, disabled=(mult_evento == 5)):
-                config_globais["multiplicador_evento"] = 5
-                salvar_configuracoes_globais(config_globais)
-                st.success("Evento 5X Ativado!")
-                time.sleep(0.4)
                 st.rerun()
             
-            if st.button("Desativar", type="secondary", use_container_width=True, disabled=(mult_evento == 1), key="btn_desativar_evento"):
+            if st.button("Desativar Eventos", type="secondary", use_container_width=True):
                 config_globais["multiplicador_evento"] = 1
-                salvar_configuracoes_globais(config_globais)
-                st.warning("Multiplicador do Evento Disativado!")
-                time.sleep(0.4)
-                st.rerun()
-
-            status_sorte = f"ATIVADO ({mult_sorte}X)" if mult_sorte > 1 else "DESATIVADO"
-            st.write(f"Multiplicador de Sorte: **{status_sorte}**")
-
-            col_st2x, col_st3x, col_st4x, col_st5x = st.columns(4)
-            if col_st2x.button("Sorte 2X", key="btn_st2", use_container_width=True, disabled=(mult_sorte == 2)):
-                config_globais["multiplicador_sorte"] = 2
-                salvar_configuracoes_globais(config_globais)
-                st.success("Sorte de Drop 2X Ativada!")
-                time.sleep(0.4)
-                st.rerun()
-            if col_st3x.button("Sorte 3X", key="btn_st3", use_container_width=True, disabled=(mult_sorte == 3)):
-                config_globais["multiplicador_sorte"] = 3
-                salvar_configuracoes_globais(config_globais)
-                st.success("Sorte de Drop 3X Ativada!")
-                time.sleep(0.4)
-                st.rerun()
-            if col_st4x.button("Sorte 4X", key="btn_st4", use_container_width=True, disabled=(mult_sorte == 4)):
-                config_globais["multiplicador_sorte"] = 4
-                salvar_configuracoes_globais(config_globais)
-                st.success("Sorte de Drop 4X Ativada!")
-                time.sleep(0.4)
-                st.rerun()
-            if col_st5x.button("Sorte 5X", key="btn_st5", use_container_width=True, disabled=(mult_sorte == 5)):
-                config_globais["multiplicador_sorte"] = 5
-                salvar_configuracoes_globais(config_globais)
-                st.success("Sorte de Drop 5X Ativada!")
-                time.sleep(0.4)
-                st.rerun()
-
-            if st.button("Desativar", type="secondary", use_container_width=True, disabled=(mult_sorte == 1), key="btn_desativar_sorte"):
                 config_globais["multiplicador_sorte"] = 1
                 salvar_configuracoes_globais(config_globais)
-                st.warning("Multiplicador de Sorte Desativado!")
-                time.sleep(0.4)
                 st.rerun()
-                
+
         elif senha_input != "":
             st.error("Senha incorreta!")
 
-    # --- MENU DE APOIADOR / TRAPAÇAS ---
+    # --- MENU DE APOIADOR ---
     st.markdown("---")
     st.header("⚙️ Painel de Apoiador")
-    
     modo_apoiador_chk = st.checkbox("Exibir Opções de Apoiador", value=st.session_state.p_apoiador_ativo)
     
-    if not modo_apoiador_chk and st.session_state.p_apoiador_ativo:
-        salvar_progresso_atual(usando_apoiador=False)
-        st.rerun()
-            
     if modo_apoiador_chk:
         senha_cheat = st.text_input("Digite a senha de Apoiador:", type="password", key="pwd_cheat")
-        
-        if len(senha_cheat) > 0 and senha_cheat == SENHA_ADMIN2:
-            if not st.session_state.p_apoiador_ativo:
-                salvar_progresso_atual(usando_apoiador=True)
-                st.rerun()
-                
-            st.success("Acesso Autorizado!")
-            
-            qtd_cheat = st.number_input("Quantidade de Pontos:", min_value=1, value=5000, step=500, key="qtd_cheat_val")
-            col_ch1, col_ch2 = st.columns(2)
-            
-            if col_ch1.button("Add", use_container_width=True, key="btn_add_apoiador"):
+        if senha_cheat == SENHA_ADMIN2:
+            st.success("Apoiador Verificado!")
+            qtd_cheat = st.number_input("Adicionar Pontos:", min_value=1, value=5000, key="qtd_cheat_val")
+            if st.button("Injetar Pontos", use_container_width=True):
                 st.session_state.pontos += qtd_cheat
-                st.session_state.pontos_leaderboard_cache = st.session_state.pontos
                 salvar_progresso_atual()
-                st.success(f"+{qtd_cheat:,} pontos adicionados!")
-                time.sleep(0.4)
                 st.rerun()
-                
-            if col_ch2.button("Rem", use_container_width=True, key="btn_rem_apoiador"):
-                st.session_state.pontos = max(0, st.session_state.pontos - qtd_cheat)
-                st.session_state.pontos_leaderboard_cache = st.session_state.pontos
-                salvar_progresso_atual()
-                st.warning(f"{qtd_cheat:,} pontos lumens removidos!")
-                time.sleep(0.4)
-                st.rerun()
-                
-        elif senha_cheat != "":
-            st.error("Senha incorreta!")
 
 # --- CONTROLE DE VIAGEM ENTRE MUNDOS ---
 st.title("Clicker Game")
@@ -714,26 +586,16 @@ st.title("Clicker Game")
 if aviso_sistema.strip() != "":
     st.info(f" **Mensagem do ADM:** {aviso_sistema}")
 
-if mult_evento > 1:
-    st.warning(f" **EVENTO GLOBAL ATIVO:** Cliques concedendo o **{mult_evento}X** de Pontos em todos os mundos!")
-
-if mult_sorte > 1:
-    st.success(f" **EVENTO DE SORTE ATIVO:** Chances de ganhar Pets Raros **{mult_sorte}X**!")
-
 CUSTO_MUNDO_2 = 10000000
 
 st.markdown("### Mundos:")
 if not st.session_state.mundo_2_desbloqueado:
-    desativar_compra_mundo = st.session_state.pontos < CUSTO_MUNDO_2
-    if st.button(f"Comprar Mundo 2 (Custo: {CUSTO_MUNDO_2:,} Pts)", disabled=desativar_compra_mundo, use_container_width=True):
-        if st.session_state.pontos >= CUSTO_MUNDO_2:
-            st.session_state.pontos -= CUSTO_MUNDO_2
-            st.session_state.mundo_2_desbloqueado = True
-            st.session_state.mundo_atual = 2
-            salvar_progresso_atual()
-            st.success("Indo para o mundo 2...")
-            time.sleep(1)
-            st.rerun()
+    if st.button(f"Comprar Mundo 2 (Custo: {CUSTO_MUNDO_2:,} Pts)", disabled=(st.session_state.pontos < CUSTO_MUNDO_2), use_container_width=True):
+        st.session_state.pontos -= CUSTO_MUNDO_2
+        st.session_state.mundo_2_desbloqueado = True
+        st.session_state.mundo_atual = 2
+        salvar_progresso_atual()
+        st.rerun()
 else:
     if st.session_state.mundo_atual == 1:
         if st.button("Teleportar para mundo 2", type="primary", use_container_width=True):
@@ -750,178 +612,96 @@ st.markdown("---")
 
 # --- CONTEÚDO DINÂMICO DOS MUNDOS ---
 if st.session_state.mundo_atual == 2:
-    st.subheader("Segundo mundo")
-    st.info("2X de multiplicador de mundo")
-    
-    st.write("Trilha sonora: on/off")
-    try:
-        st.audio("musica67.mp3") 
-    except Exception:
-        pass
-
+    st.subheader("Segundo mundo (2X Global)")
     renderizar_area_clique()
 
     st.markdown("---")
-    st.subheader("Comprar ovos:")
+    st.subheader("Comprar ovos M2:")
     col_m2_egg1, col_m2_egg2 = st.columns(2)
 
     ch1_m2_o1, ch2_m2_o1, ch3_m2_o1 = calcular_chances_ovo(50, 35, 15)
 
     with col_m2_egg1:
-        st.write("### Ovo Épico:")
-        st.write(f"{NOME_PET_7}: {ch1_m2_o1:.1f}% (+{BONUS_PET_7:,} Pts)")
-        st.write(f"{NOME_PET_8}: {ch2_m2_o1:.1f}% (+{BONUS_PET_8:,} Pts)")
-        st.write(f"{NOME_PET_9}: **{ch3_m2_o1:.1f}%** (+{BONUS_PET_9:,} Pts)")
-        
-        desativar_m2_ovo1 = st.session_state.pontos < CUSTO_OVO_MUNDO_2_BARATO or loja_em_cooldown
-        
-        if st.button(f"Abrir Ovo = {CUSTO_OVO_MUNDO_2_BARATO:,} Pontos", disabled=desativar_m2_ovo1, key="botao_m2_ovo1"):
-            st.session_state.ultima_compra = time.time()  
+        st.write(f"### Ovo Épico ({CUSTO_OVO_MUNDO_2_BARATO:,} pts):")
+        if st.button("Abrir Ovo Épico", disabled=loja_em_cooldown, key="btn_m2_o1"):
+            st.session_state.ultima_compra = time.time()
             if st.session_state.pontos >= CUSTO_OVO_MUNDO_2_BARATO:
                 st.session_state.pontos -= CUSTO_OVO_MUNDO_2_BARATO
-                sorteado = random.choices(
-                   [{"nome": NOME_PET_7, "arquivo": "logo7.png", "bonus": BONUS_PET_7, "chance": "50%"}, 
-                    {"nome": NOME_PET_8, "arquivo": "logo8.png", "bonus": BONUS_PET_8, "chance": "35%"},
-                    {"nome": NOME_PET_9, "arquivo": "logo9.png", "bonus": BONUS_PET_9, "chance": "15%"}],
+                st.session_state.pet_slot_m2_1 = random.choices(
+                   [{"nome": NOME_PET_7, "arquivo": "logo7.png", "bonus": BONUS_PET_7}, 
+                    {"nome": NOME_PET_8, "arquivo": "logo8.png", "bonus": BONUS_PET_8},
+                    {"nome": NOME_PET_9, "arquivo": "logo9.png", "bonus": BONUS_PET_9}],
                    weights=[ch1_m2_o1, ch2_m2_o1, ch3_m2_o1], k=1
                 )[0]
-                st.session_state.pet_slot_m2_1 = sorteado
                 atualizar_poder_clique()
                 salvar_progresso_atual()
-                time.sleep(0.5) 
                 st.rerun()
 
         if st.session_state.pet_slot_m2_1:
-            pet = st.session_state.pet_slot_m2_1
-            st.write("**Pet Equipado:**")
-            try:
-                st.image(pet["arquivo"], width=167)
-            except Exception:
-                st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada.")
-            st.caption(f"{pet['nome']} | +{calcular_bonus_pet(pet):,} por clique")
-
-    ch1_m2_o2, ch2_m2_o2, ch3_m2_o2 = calcular_chances_ovo(50, 35, 15)
+            st.caption(f"Equipado: {st.session_state.pet_slot_m2_1['nome']} (+{st.session_state.pet_slot_m2_1['bonus']:,})")
 
     with col_m2_egg2:
-        st.write("### Ovo Lendário:")
-        st.write(f"{NOME_PET_M2_R1}: {ch1_m2_o2:.1f}% (+{BONUS_PET_M2_R1:,} Pts)")
-        st.write(f"{NOME_PET_M2_R2}: {ch2_m2_o2:.1f}% (+{BONUS_PET_M2_R2:,} Pts)")
-        st.write(f"{NOME_PET_M2_R3}: **{ch3_m2_o2:.1f}%** (+{BONUS_PET_M2_R3:,} Pts)")
-        
-        desativar_m2_ovo2 = st.session_state.pontos < CUSTO_OVO_MUNDO_2_CARO or loja_em_cooldown
-        
-        if st.button(f"Abrir Ovo = {CUSTO_OVO_MUNDO_2_CARO:,} Pontos", disabled=desativar_m2_ovo2, key="botao_m2_ovo2"):
+        st.write(f"### Ovo Lendário ({CUSTO_OVO_MUNDO_2_CARO:,} pts):")
+        if st.button("Abrir Ovo Lendário", disabled=loja_em_cooldown, key="btn_m2_o2"):
             st.session_state.ultima_compra = time.time()
             if st.session_state.pontos >= CUSTO_OVO_MUNDO_2_CARO:
                 st.session_state.pontos -= CUSTO_OVO_MUNDO_2_CARO
-                sorteado = random.choices(
-                   [{"nome": NOME_PET_M2_R1, "arquivo": "logo10.png", "bonus": BONUS_PET_M2_R1, "chance": "50%"}, 
-                    {"nome": NOME_PET_M2_R2, "arquivo": "logo11.png", "bonus": BONUS_PET_M2_R2, "chance": "35%"},
-                    {"nome": NOME_PET_M2_R3, "arquivo": "logo12.png", "bonus": BONUS_PET_M2_R3, "chance": "15%"}],
-                   weights=[ch1_m2_o2, ch2_m2_o2, ch3_m2_o2], k=1
+                st.session_state.pet_slot_m2_2 = random.choices(
+                   [{"nome": NOME_PET_M2_R1, "arquivo": "logo10.png", "bonus": BONUS_PET_M2_R1}, 
+                    {"nome": NOME_PET_M2_R2, "arquivo": "logo11.png", "bonus": BONUS_PET_M2_R2},
+                    {"nome": NOME_PET_M2_R3, "arquivo": "logo12.png", "bonus": BONUS_PET_M2_R3}],
+                   weights=[50, 35, 15], k=1
                 )[0]
-                st.session_state.pet_slot_m2_2 = sorteado
                 atualizar_poder_clique()
                 salvar_progresso_atual()
-                time.sleep(0.5) 
                 st.rerun()
 
         if st.session_state.pet_slot_m2_2:
-            pet = st.session_state.pet_slot_m2_2
-            st.write("**Pet Equipado:**")
-            try:
-                st.image(pet["arquivo"], width=120)
-            except Exception:
-                st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada.")
-            st.caption(f"{pet['nome']} | +{calcular_bonus_pet(pet):,} por clique")
+            st.caption(f"Equipado: {st.session_state.pet_slot_m2_2['nome']} (+{st.session_state.pet_slot_m2_2['bonus']:,})")
 
-# --- CONTEÚDO MUNDO 1 ---
-if st.session_state.mundo_atual != 2:
+else:
     st.subheader("Primeiro Mundo")
-    
-    st.write("Trilha sonora: on/off")
-    try:
-        st.audio("musica67.mp3")
-    except Exception:
-        st.caption("🎵 Arquivo 'musica67.mp3' não encontrado.")
-
     renderizar_area_clique()
 
     st.markdown("---")
-    st.subheader("Comprar Ovos:")
+    st.subheader("Comprar Ovos M1:")
     col3, col4 = st.columns(2)
 
-    ch1_m1_o1, ch2_m1_o1, ch3_m1_o1 = calcular_chances_ovo(50, 35, 15)
-
     with col3:
-        st.write("### Ovo Comum:")
-        st.write(f"Siruriru: {ch1_m1_o1:.1f}% (+1 Ponto)")
-        st.write(f"Peppa Pig: {ch2_m1_o1:.1f}% (+5 Pontos)")
-        st.write(f"Manoel G: **{ch3_m1_o1:.1f}%** (+10 Pontos)")
-        
-        custo_ovo1 = 100
-        desativar_ovo1 = st.session_state.pontos < custo_ovo1 or loja_em_cooldown
-        
-        if st.button(f"Abrir Ovo = {custo_ovo1} Pontos", disabled=desativar_ovo1, key="botao_ovo1"):
-            st.session_state.ultima_compra = time.time()  
-            if st.session_state.pontos >= custo_ovo1:
-                st.session_state.pontos -= custo_ovo1
-                sorteado_ovo1 = random.choices(
-                   [{"nome": "Siruriru", "arquivo": "logo3.png", "bonus": 1, "chance": "50%"}, 
-                    {"nome": "Peppa Pig", "arquivo": "logo2.png", "bonus": 5, "chance": "35%"},
-                    {"nome": "Manoel G", "arquivo": "logo1.png", "bonus": 10, "chance": "15%"}],
-                   weights=[ch1_m1_o1, ch2_m1_o1, ch3_m1_o1], k=1
+        st.write("### Ovo Comum (100 pts):")
+        if st.button("Abrir Ovo Comum", disabled=loja_em_cooldown, key="btn_m1_o1"):
+            st.session_state.ultima_compra = time.time()
+            if st.session_state.pontos >= 100:
+                st.session_state.pontos -= 100
+                st.session_state.pet_slot_1 = random.choices(
+                   [{"nome": "Siruriru", "arquivo": "logo3.png", "bonus": 1}, 
+                    {"nome": "Peppa Pig", "arquivo": "logo2.png", "bonus": 5},
+                    {"nome": "Manoel G", "arquivo": "logo1.png", "bonus": 10}],
+                   weights=[50, 35, 15], k=1
                 )[0]
-                st.session_state.pet_slot_1 = sorteado_ovo1
                 atualizar_poder_clique()
                 salvar_progresso_atual()
-                time.sleep(0.5) 
                 st.rerun()
-
         if st.session_state.pet_slot_1:
-            pet = st.session_state.pet_slot_1
-            st.write("**Pet Equipado:**")
-            try:
-                st.image(pet["arquivo"], width=188)
-            except Exception:
-                st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada.")
-            st.caption(f"{pet['nome']} | +{calcular_bonus_pet(pet)} por clique")
-
-    ch1_m1_o2, ch2_m1_o2, ch3_m1_o2 = calcular_chances_ovo(50, 35, 15)
+            st.caption(f"Equipado: {st.session_state.pet_slot_1['nome']} (+{st.session_state.pet_slot_1['bonus']})")
 
     with col4:
-        st.write("### Ovo Raro:")
-        st.write(f"Dora A.: {ch1_m1_o2:.1f}% (+10 Pontos)")
-        st.write(f"Sonic: {ch2_m1_o2:.1f}% (+50 Pontos)")
-        st.write(f"Michael J.: **{ch3_m1_o2:.1f}%** (+100 Pontos)")
-        
-        custo_ovo2 = 1000
-        desativar_ovo2 = st.session_state.pontos < custo_ovo2 or loja_em_cooldown
-        
-        if st.button(f"Abrir Ovo = {custo_ovo2} Pontos", disabled=desativar_ovo2, key="botao_ovo2"):
+        st.write("### Ovo Raro (1,000 pts):")
+        if st.button("Abrir Ovo Raro", disabled=loja_em_cooldown, key="btn_m1_o2"):
             st.session_state.ultima_compra = time.time()
-            if st.session_state.pontos >= custo_ovo2:
-                st.session_state.pontos -= custo_ovo2
-                sorteado_ovo2 = random.choices(
-                   [{"nome": "Dora A.", "arquivo": "logo4.png", "bonus": 10, "chance": "50%"}, 
-                    {"nome": "Sonic", "arquivo": "logo5.png", "bonus": 50, "chance": "35%"},
-                    {"nome": "Michael J.", "arquivo": "logo6.png", "bonus": 100, "chance": "15%"}],
-                   weights=[ch1_m1_o2, ch2_m1_o2, ch3_m1_o2], k=1
+            if st.session_state.pontos >= 1000:
+                st.session_state.pontos -= 1000
+                st.session_state.pet_slot_2 = random.choices(
+                   [{"nome": "Dora A.", "arquivo": "logo4.png", "bonus": 10}, 
+                    {"nome": "Sonic", "arquivo": "logo5.png", "bonus": 50},
+                    {"nome": "Michael J.", "arquivo": "logo6.png", "bonus": 100}],
+                   weights=[50, 35, 15], k=1
                 )[0]
-                st.session_state.pet_slot_2 = sorteado_ovo2
                 atualizar_poder_clique()
                 salvar_progresso_atual()
-                time.sleep(0.5) 
                 st.rerun()
-
         if st.session_state.pet_slot_2:
-            pet = st.session_state.pet_slot_2
-            st.write("**Pet Equipado:**")
-            try:
-                st.image(pet["arquivo"], width=100)
-            except Exception:
-                st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada.")
-            st.caption(f"{pet['nome']} | +{calcular_bonus_pet(pet)} por clique")
+            st.caption(f"Equipado: {st.session_state.pet_slot_2['nome']} (+{st.session_state.pet_slot_2['bonus']})")
 
 st.markdown("---")
 
@@ -929,128 +709,41 @@ st.markdown("---")
 st.subheader("Loja de Melhorias")
 
 if st.session_state.mundo_atual == 2:
-    melhorias_clique = [
-        {"qtd": 50000, "custo": 15000000}, {"qtd": 100000, "custo": 50000000},
-        {"qtd": 250000, "custo": 150000000}, {"qtd": 500000, "custo": 500000000},
-        {"qtd": 1000000, "custo": 1000000000}, {"qtd": 2500000, "custo": 3500000000},
-        {"qtd": 5000000, "custo": 8000000000}, {"qtd": 10000000, "custo": 20000000000},
-        {"qtd": 25000000, "custo": 50000000000}, {"qtd": 50000000, "custo": 100000000000}
-    ]
-    melhorias_passivas = [
-        {"qtd": 50000, "custo": 4000000}, {"qtd": 100000, "custo": 12000000},
-        {"qtd": 250000, "custo": 40000000}, {"qtd": 500000, "custo": 120000000},
-        {"qtd": 1000000, "custo": 400000000}, {"qtd": 2000000, "custo": 1000000000},
-        {"qtd": 5000000, "custo": 3000000000}, {"qtd": 10000000, "custo": 7500000000},
-        {"qtd": 20000000, "custo": 15000000000}, {"qtd": 50000000, "custo": 40000000000}
-    ]
+    melhorias_clique = [{"qtd": 50000, "custo": 15000000}, {"qtd": 100000, "custo": 50000000}]
+    melhorias_passivas = [{"qtd": 50000, "custo": 4000000}, {"qtd": 100000, "custo": 12000000}]
 else:
-    melhorias_clique = [
-        {"qtd": 1, "custo": 100}, {"qtd": 5, "custo": 500}, {"qtd": 10, "custo": 1000},
-        {"qtd": 50, "custo": 5000}, {"qtd": 100, "custo": 10000}, {"qtd": 500, "custo": 50000},
-        {"qtd": 1000, "custo": 100000}, {"qtd": 2500, "custo": 250000}, {"qtd": 5000, "custo": 500000},
-        {"qtd": 10000, "custo": 1000000}
-    ]
-    melhorias_passivas = [
-        {"qtd": 5, "custo": 200}, {"qtd": 10, "custo": 600}, {"qtd": 20, "custo": 1100},
-        {"qtd": 100, "custo": 7500}, {"qtd": 200, "custo": 14500}, {"qtd": 1000, "custo": 72500},
-        {"qtd": 2000, "custo": 145000}, {"qtd": 5000, "custo": 360000}, {"qtd": 10000, "custo": 725000},
-        {"qtd": 20000, "custo": 1450000}
-    ]
+    melhorias_clique = [{"qtd": 1, "custo": 100}, {"qtd": 5, "custo": 500}, {"qtd": 10, "custo": 1000}]
+    melhorias_passivas = [{"qtd": 5, "custo": 200}, {"qtd": 10, "custo": 600}, {"qtd": 20, "custo": 1100}]
 
 col1, col2 = st.columns(2)
 
 with col1:
     st.subheader("Melhoria Clicker")
-    with st.container(height=350):
-        for i, item in enumerate(melhorias_clique):
-            texto = f"+{item['qtd']:,} clk | {item['custo']:,} Pts"
-            desativado = st.session_state.pontos < item['custo'] or loja_em_cooldown
-            key_btn = f"c_{st.session_state.mundo_atual}_{i}"
-
-            if st.button(texto, key=key_btn, disabled=desativado, use_container_width=True):
-                if st.session_state.pontos >= item['custo']:
-                    st.session_state.ultima_compra = time.time()
-                    st.session_state.pontos -= item['custo']
-                    st.session_state.poder_base += item['qtd']
-                    atualizar_poder_clique()  
-                    st.session_state.pontos_leaderboard_cache = st.session_state.pontos
-                    salvar_progresso_atual()
-                    st.rerun()
+    for i, item in enumerate(melhorias_clique):
+        if st.button(f"+{item['qtd']:,} clk | {item['custo']:,} Pts", key=f"clk_{i}", disabled=(st.session_state.pontos < item['custo'] or loja_em_cooldown)):
+            st.session_state.ultima_compra = time.time()
+            st.session_state.pontos -= item['custo']
+            st.session_state.poder_base += item['qtd']
+            atualizar_poder_clique()
+            salvar_progresso_atual()
+            st.rerun()
 
 with col2:
     st.subheader("Auto Clickers")
-    with st.container(height=350):
-        for i, item in enumerate(melhorias_passivas):
-            texto = f"+{item['qtd']:,}/s | {item['custo']:,} Pts"
-            desativado = st.session_state.pontos < item['custo'] or loja_em_cooldown
-            key_btn = f"p_{st.session_state.mundo_atual}_{i}"
+    for i, item in enumerate(melhorias_passivas):
+        if st.button(f"+{item['qtd']:,}/s | {item['custo']:,} Pts", key=f"pas_{i}", disabled=(st.session_state.pontos < item['custo'] or loja_em_cooldown)):
+            st.session_state.ultima_compra = time.time()
+            st.session_state.pontos -= item['custo']
+            st.session_state.pontos_por_segundo += item['qtd']
+            salvar_progresso_atual()
+            st.rerun()
 
-            if st.button(texto, key=key_btn, disabled=desativado, use_container_width=True):
-                if st.session_state.pontos >= item['custo']:
-                    st.session_state.ultima_compra = time.time()
-                    st.session_state.pontos -= item['custo']
-                    st.session_state.pontos_por_segundo += item['qtd']
-                    st.session_state.pontos_leaderboard_cache = st.session_state.pontos
-                    salvar_progresso_atual()
-                    st.rerun()
-
+# Placar e Logs finais
 if st.session_state.nome_usuario:
     atualizar_no_leaderboard(st.session_state.nome_usuario, st.session_state.pontos)
 
-# --- LOG DE ATUALIZAÇÕES ---
-st.markdown("---")
-st.subheader("Atualizações:")
-st.write("(1.0.0)(Beta) - Lançamento!!!")
-st.write("(2.6.0) - Adição do Sistema de Monitoramento de Painéis em Tempo Real (ADM)")
-st.write("(2.7.0) - Correção Crítica de Segurança e Validação Uniforme no Banco de Dados")
-st.write("(3.0.0)(Fix) - Reconstrução Completa da Leitura Bruta em JSON (Correção de Contas Fantasmas na Inspeção)")
-
-# --- 🏆 TABELA DE CLASSIFICAÇÃO GLOBAL ---
 st.markdown("---")
 st.subheader("Top Global:")
 dados_placar = carregar_leaderboard()
-
 if dados_placar:
     st.table(dados_placar)
-else:
-    st.info("O placar está vazio.")
-
-# --- SISTEMA DE RESET DE JOGO ---
-st.markdown("---")
-if not st.session_state.confirmando_reset:
-    if st.button("Resetar Jogo", use_container_width=True):
-        st.session_state.confirmando_reset = True
-        st.rerun()
-else:
-    st.warning("⚠️ **Você tem certeza absoluta?** Isso apagará permanentemente todos os seus pontos, melhorias, mundos e pets salvos!")
-    col_sim, col_nao = st.columns(2)
-    
-    with col_sim:
-        if st.button("SIM, deletar tudo", type="primary", use_container_width=True):
-            remover_jogador_leaderboard(st.session_state.nome_usuario)
-            st.query_params.clear()
-            
-            usuarios = carregar_todos_usuarios()
-            user_key = st.session_state.nome_usuario.lower()
-            if user_key in usuarios:
-                usuarios[user_key]["dados"] = {
-                    "pontos": 0, "poder_base": 1, "pontos_por_segundo": 0,
-                    "pet_slot_1": None, "pet_slot_2": None,
-                    "pet_slot_m2_1": None, "pet_slot_m2_2": None,
-                    "ultimo_tick": time.time(), "mundo_2_desbloqueado": False, "mundo_atual": 1,
-                    "usando_admin": False, "usando_apoiador": False
-                }
-                salvar_todos_usuarios(usuarios)
-                
-            st.session_state.logado = False
-            st.session_state.nome_usuario = ""
-            st.session_state.p_admin_ativo = False
-            st.session_state.p_apoiador_ativo = False
-            st.success("Jogo reiniciado com sucesso!")
-            time.sleep(0.5)
-            st.rerun()
-            
-    with col_nao:
-        if st.button("NÃO, voltar ao jogo", use_container_width=True):
-            st.session_state.confirmando_reset = False
-            st.rerun()
