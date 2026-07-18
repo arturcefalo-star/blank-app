@@ -35,6 +35,7 @@ SENHA_ADMIN = "XXxx67xxXX"
 ACCOUNTS_FILE = "usuarios.json"
 LEADERBOARD_FILE = "leaderboard.json"
 AVISOS_FILE = "avisos.json"
+SESSION_FILE = "sessao_ativa.json"  # Arquivo que lembra quem está logado
 
 # --- FUNÇÕES DE GERENCIAMENTO DE USUÁRIOS E SALVAMENTO ---
 
@@ -146,12 +147,55 @@ def salvar_configuracoes_globais(dados):
     with open(AVISOS_FILE, "w", encoding="utf-8") as f:
         json.dump(dados, f, ensure_ascii=False, indent=4)
 
+# --- FUNÇÕES DE AUTO-LOGIN (PERSISTÊNCIA DE SESSÃO) ---
+def salvar_sessao_ativa(username):
+    with open(SESSION_FILE, "w", encoding="utf-8") as f:
+        json.dump({"usuario_ativo": username}, f)
+
+def limpar_sessao_ativa():
+    if os.path.exists(SESSION_FILE):
+        try:
+            os.remove(SESSION_FILE)
+        except Exception:
+            pass
+
+def verificar_auto_login():
+    if os.path.exists(SESSION_FILE):
+        try:
+            with open(SESSION_FILE, "r", encoding="utf-8") as f:
+                dados_sessao = json.load(f)
+                return dados_sessao.get("usuario_ativo", "").lower()
+        except Exception:
+            return None
+    return None
+
 
 # --- INICIALIZAÇÃO DE SESSÃO DO LOGIN ---
 if "logado" not in st.session_state:
     st.session_state.logado = False
 if "nome_usuario" not in st.session_state:
     st.session_state.nome_usuario = ""
+
+# --- CHECAGEM AUTOMÁTICA DE LOGIN (EXECUTA APENAS UMA VEZ NO COMPONENT LOAD) ---
+if not st.session_state.logado:
+    usuario_salvo = verificar_auto_login()
+    if usuario_salvo:
+        usuarios = carregar_todos_usuarios()
+        if usuario_salvo in usuarios:
+            dados = usuarios[usuario_salvo]["dados"]
+            st.session_state.pontos = dados.get("pontos", 0)
+            st.session_state.poder_base = dados.get("poder_base", 1)
+            st.session_state.pontos_por_segundo = dados.get("pontos_por_segundo", 0)
+            st.session_state.pet_slot_1 = dados.get("pet_slot_1", None)
+            st.session_state.pet_slot_2 = dados.get("pet_slot_2", None)
+            st.session_state.pet_slot_m2_1 = dados.get("pet_slot_m2_1", None)
+            st.session_state.pet_slot_m2_2 = dados.get("pet_slot_m2_2", None)
+            st.session_state.ultimo_tick = dados.get("ultimo_tick", time.time())
+            st.session_state.mundo_2_desbloqueado = dados.get("mundo_2_desbloqueado", False)
+            st.session_state.mundo_atual = dados.get("mundo_atual", 1)
+            st.session_state.pontos_leaderboard_cache = dados.get("pontos", 0)
+            st.session_state.nome_usuario = usuarios[usuario_salvo]["nome_exibicao"]
+            st.session_state.logado = True
 
 # =====================================================================
 # 🔐 TELA DE LOGIN / REGISTRO
@@ -186,6 +230,10 @@ if not st.session_state.logado:
                 
                 st.session_state.nome_usuario = usuarios[user_key]["nome_exibicao"]
                 st.session_state.logado = True
+                
+                # Salva a sessão ativa localmente para entrar direto da próxima vez
+                salvar_sessao_ativa(user_key)
+                
                 st.success(f"Bem-vindo de volta, {st.session_state.nome_usuario}!")
                 time.sleep(0.5)
                 st.rerun()
@@ -273,7 +321,6 @@ atualizar_poder_clique()
 # --- 🚀 SISTEMA ANTI-LAG DEFINITIVO COM FRAGMENTO OTIMIZADO ---
 @st.fragment
 def renderizar_area_clique():
-    # Isso impede o resto da página inteira (e o admin) de piscar ou recarregar!
     st_autorefresh(interval=3000, key="game_click_loop")
     
     agora = time.time()
@@ -326,6 +373,7 @@ with st.sidebar:
     st.write(f"Conectado como: **{st.session_state.nome_usuario}**")
     if st.button("Sair da Conta (Logout)", type="secondary"):
         salvar_progresso_atual()
+        limpar_sessao_ativa()  # Apaga os dados salvos para não logar sozinho da próxima vez
         st.session_state.logado = False
         st.session_state.nome_usuario = ""
         st.rerun()
@@ -882,6 +930,7 @@ st.write("(2.1.1) - Sistema de salvamento de top global in tempo real, correçã
 st.write("(2.2.2) - Adição do Sistema de Mensagem Global (ADM)")
 st.write("(2.3.3) - Adição de novas funções de multiplicação de sorte e dinheiro (ADM)")
 st.write("(2.4.4) - Adição do Sistema de Inspeção de Jogadores (ADM)")
+st.write("(2.5.5) - Integração do Sistema de Login Automático de Sessão")
 
 # --- 🏆 TABELA DE CLASSIFICAÇÃO GLOBAL ---
 st.markdown("---")
@@ -906,6 +955,7 @@ else:
     with col_sim:
         if st.button("SIM, deletar tudo", type="primary", use_container_width=True):
             remover_jogador_leaderboard(st.session_state.nome_usuario)
+            limpar_sessao_ativa()
             
             usuarios = carregar_todos_usuarios()
             user_key = st.session_state.nome_usuario.lower()
