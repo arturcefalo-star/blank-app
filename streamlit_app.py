@@ -458,6 +458,29 @@ with st.sidebar:
                         except Exception:
                             pass
 
+                                # ... (dentro do bloco 'if st.button("Inspecionar"):')
+            if st.button("Inspecionar"):
+                key = sel.lower()
+                st.write(f"Pontos atuais: {usrs[key]['dados']['pontos']}")
+                
+                # ADICIONE ISSO AQUI:
+                pts_edit = st.number_input("Quantidade para editar:", min_value=0, value=1000, step=100)
+                
+                # E DEPOIS OS BOTÕES COM A LÓGICA:
+                c1, c2, c3 = st.columns(3)
+                if c1.button("Add Pts"):
+                    usrs[key]["dados"]["pontos"] += pts_edit
+                    salvar_todos_usuarios(usrs)
+                    st.rerun()
+                if c2.button("Rem Pts"):
+                    usrs[key]["dados"]["pontos"] = max(0, usrs[key]["dados"]["pontos"] - pts_edit)
+                    salvar_todos_usuarios(usrs)
+                    st.rerun()
+                if c3.button("Banir", type="primary"):
+                    usrs[key]["dados"]["pontos"] = 0
+                    salvar_todos_usuarios(usrs)
+                    st.rerun()
+
                     # Botão Adicionar Pontos
                     if col_act1.button("Add Pts", key=f"ins_add_{key_inspect}"):
                         if key_inspect in usuarios_db_inspect:
