@@ -405,7 +405,7 @@ with st.sidebar:
                 time.sleep(0.3)
                 st.rerun()
                 
-            if col_msg2.button("Apagar Msg", type="secondary", use_container_width=True):
+            if col_msg2.button("Apagar Mensagem", type="secondary", use_container_width=True):
                 dados_globais["mensagem"] = ""
                 salvar_dados_globais(dados_globais)
                 st.rerun()
