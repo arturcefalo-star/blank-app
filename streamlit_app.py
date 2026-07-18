@@ -256,6 +256,8 @@ if not st.session_state.logado:
                     }
                 }
                 salvar_todos_usuarios(usuarios)
+                # Força a criação do registro inicial também no leaderboard para consistência global
+                atualizar_no_leaderboard(reg_user, 0)
                 st.success("Conta criada com sucesso! Faça login na aba ao lado.")
                 
     st.stop()
@@ -445,26 +447,34 @@ with st.sidebar:
                 salvar_configuracoes_globais(config_globais)
                 st.rerun()
 
-            # --- 🛠️ INSPEÇÃO DE JOGADORES CORRIGIDA EM TEMPO REAL ---
+            # --- 🛠️ INSPEÇÃO DE JOGADORES 100% CORRIGIDA EM TEMPO REAL ---
             st.markdown("---")
             st.subheader("Inspecionar Jogador")
 
-            # Força o recarregamento do arquivo a cada ciclo de renderização
+            # Varre o banco bruto em tempo real e captura o nome exato de exibição configurado no registro
             usuarios_db_inspect = carregar_todos_usuarios()
-            lista_jogadores = [usuarios_db_inspect[k]["nome_exibicao"] for k in sorted(usuarios_db_inspect.keys())]
+            lista_jogadores = []
+            for chave_username in usuarios_db_inspect:
+                if "nome_exibicao" in usuarios_db_inspect[chave_username]:
+                    lista_jogadores.append(usuarios_db_inspect[chave_username]["nome_exibicao"])
+            
+            # Ordena alfabeticamente para facilitar a busca do Admin
+            lista_jogadores = sorted(list(set(lista_jogadores)))
 
             if lista_jogadores:
-                # Resolve o bug de estado salvando a seleção diretamente por chave de controle ou índice válido
+                # Se o jogador selecionado sumir ou o estado resetar, volta para o primeiro da lista de forma segura
                 if st.session_state.jogador_sob_inspecao not in lista_jogadores:
                     st.session_state.jogador_sob_inspecao = lista_jogadores[0]
                 
                 idx_inicial = lista_jogadores.index(st.session_state.jogador_sob_inspecao)
                 
+                # A chave dinâmica inclui a soma total de cadastros. Se uma conta nova entrar, o widget reconstrói na hora.
+                total_contas_registradas = len(lista_jogadores)
                 jogador_selecionado = st.selectbox(
                     "Selecione um jogador:", 
                     options=lista_jogadores, 
                     index=idx_inicial, 
-                    key=f"inspect_select_live_{len(lista_jogadores)}" # Chave dinâmica reconstrói o selectbox ao mudar tamanho
+                    key=f"live_inspect_widget_v3_{total_contas_registradas}"
                 )
                 
                 st.session_state.jogador_sob_inspecao = jogador_selecionado
@@ -993,7 +1003,7 @@ st.subheader("Atualizações:")
 st.write("(1.0.0)(Beta) - Lançamento!!!")
 st.write("(2.6.0) - Adição do Sistema de Monitoramento de Painéis em Tempo Real (ADM)")
 st.write("(2.7.0) - Correção Crítica de Segurança e Validação Uniforme no Banco de Dados")
-st.write("(2.9.0) - Reconstrução Dinâmica de Chave no Seletor de Inspeção para atualização 100% em Tempo Real")
+st.write("(3.0.0)(Fix) - Reconstrução Completa da Leitura Bruta em JSON (Correção de Contas Fantasmas na Inspeção)")
 
 # --- 🏆 TABELA DE CLASSIFICAÇÃO GLOBAL ---
 st.markdown("---")
