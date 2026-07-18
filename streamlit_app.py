@@ -244,20 +244,28 @@ aviso_sistema = config_globais.get("mensagem", "")
 mult_evento = config_globais.get("multiplicador_evento", 1) 
 mult_sorte = config_globais.get("multiplicador_sorte", 1)
 
+def calcular_bonus_pet(pet):
+    """Calcula o bônus do pet aplicando a sorte apenas se a chance for <= 15%"""
+    if not pet:
+        return 0
+    # Extrai o número da string de chance (ex: "15%" vira 15)
+    try:
+        chance_num = int(pet["chance"].replace("%", ""))
+    except Exception:
+        chance_num = 100
+        
+    if chance_num <= 15:
+        return pet["bonus"] * mult_sorte
+    return pet["bonus"]
+
 def atualizar_poder_clique():
     bonus_total = 0
-    if st.session_state.pet_slot_1:
-        bonus_total += st.session_state.pet_slot_1["bonus"]
-    if st.session_state.pet_slot_2:
-        bonus_total += st.session_state.pet_slot_2["bonus"]
-    if st.session_state.pet_slot_m2_1:
-        bonus_total += st.session_state.pet_slot_m2_1["bonus"]
-    if st.session_state.pet_slot_m2_2:
-        bonus_total += st.session_state.pet_slot_m2_2["bonus"]
+    bonus_total += calcular_bonus_pet(st.session_state.pet_slot_1)
+    bonus_total += calcular_bonus_pet(st.session_state.pet_slot_2)
+    bonus_total += calcular_bonus_pet(st.session_state.pet_slot_m2_1)
+    bonus_total += calcular_bonus_pet(st.session_state.pet_slot_m2_2)
     
-    # Aplica o multiplicador de Sorte global nos bônus dos pets ativos
-    bonus_com_sorte = bonus_total * mult_sorte
-    poder_calculado = st.session_state.poder_base + bonus_com_sorte
+    poder_calculado = st.session_state.poder_base + bonus_total
     
     # Multiplica o ganho com base no evento global ativo de dinheiro
     st.session_state.poder_clique = poder_calculado * mult_evento
@@ -460,14 +468,14 @@ with st.sidebar:
             if st.button("Desativar Multiplicador de Dinheiro", type="secondary", use_container_width=True, disabled=(mult_evento == 1)):
                 config_globais["multiplicador_evento"] = 1
                 salvar_configuracoes_globais(config_globais)
-                st.warning("Multiplicador do Evento Desativado!")
+                st.warning("Multiplicador do Evento Disativado!")
                 time.sleep(0.4)
                 st.rerun()
 
             st.markdown("---")
             # 2. Painel Dinâmico do Novo Multiplicador de Sorte (Pets)
             status_sorte = f"ATIVADO ({mult_sorte}X) 🍀" if mult_sorte > 1 else "DESATIVADO 🔴"
-            st.write(f"Multiplicador Global de Sorte (Pets): **{status_sorte}**")
+            st.write(f"Multiplicador Global de Sorte (Pets <= 15%): **{status_sorte}**")
 
             col_st2x, col_st3x, col_st4x, col_st5x = st.columns(4)
             if col_st2x.button("Sorte 2X", key="btn_st2", use_container_width=True, disabled=(mult_sorte == 2)):
@@ -516,7 +524,7 @@ if mult_evento > 1:
     st.warning(f"🔥 **EVENTO GLOBAL ATIVO:** Cliques concedendo o **{mult_evento}X** de Pontos em todos os mundos!")
 
 if mult_sorte > 1:
-    st.success(f"🍀 **EVENTO DE SORTE ATIVO:** Bônus de todos os Pets multiplicados por **{mult_sorte}X** nativamente!")
+    st.success(f"🍀 **EVENTO DE SORTE ATIVO:** Bônus de Pets Raríssimos (Chances de 15% ou menos) multiplicados por **{mult_sorte}X**!")
 
 CUSTO_MUNDO_2 = 10000000
 
@@ -575,9 +583,9 @@ if st.session_state.mundo_atual == 2:
 
     with col_m2_egg1:
         st.write("### Ovo Épico:")
-        st.write(f"{NOME_PET_7}: 50% (+{BONUS_PET_7 * mult_sorte:,} Pts)")
-        st.write(f"{NOME_PET_8}: 35% (+{BONUS_PET_8 * mult_sorte:,} Pts)")
-        st.write(f"{NOME_PET_9}: 15% (+{BONUS_PET_9 * mult_sorte:,} Pts)")
+        st.write(f"{NOME_PET_7}: 50% (+{BONUS_PET_7:,} Pts)")
+        st.write(f"{NOME_PET_8}: 35% (+{BONUS_PET_8:,} Pts)")
+        st.write(f"{NOME_PET_9}: 15% (+{BONUS_PET_9 * mult_sorte:,} Pts) 🍀")
         
         desativar_m2_ovo1 = st.session_state.pontos < CUSTO_OVO_MUNDO_2_BARATO or loja_em_cooldown
         
@@ -604,13 +612,13 @@ if st.session_state.mundo_atual == 2:
                 st.image(pet["arquivo"], width=167)
             except Exception:
                 st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada.")
-            st.caption(f"{pet['nome']} ({pet['chance']}) | +{pet['bonus'] * mult_sorte:,} por clique")
+            st.caption(f"{pet['nome']} ({pet['chance']}) | +{calcular_bonus_pet(pet):,} por clique")
 
     with col_m2_egg2:
         st.write("### Ovo Lendário:")
-        st.write(f"{NOME_PET_M2_R1}: 50% (+{BONUS_PET_M2_R1 * mult_sorte:,} Pts)")
-        st.write(f"{NOME_PET_M2_R2}: 35% (+{BONUS_PET_M2_R2 * mult_sorte:,} Pts)")
-        st.write(f"{NOME_PET_M2_R3}: 15% (+{BONUS_PET_M2_R3 * mult_sorte:,} Pts)")
+        st.write(f"{NOME_PET_M2_R1}: 50% (+{BONUS_PET_M2_R1:,} Pts)")
+        st.write(f"{NOME_PET_M2_R2}: 35% (+{BONUS_PET_M2_R2:,} Pts)")
+        st.write(f"{NOME_PET_M2_R3}: 15% (+{BONUS_PET_M2_R3 * mult_sorte:,} Pts) 🍀")
         
         desativar_m2_ovo2 = st.session_state.pontos < CUSTO_OVO_MUNDO_2_CARO or loja_em_cooldown
         
@@ -637,7 +645,7 @@ if st.session_state.mundo_atual == 2:
                 st.image(pet["arquivo"], width=120)
             except Exception:
                 st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada.")
-            st.caption(f"{pet['nome']} ({pet['chance']}) | +{pet['bonus'] * mult_sorte:,} por clique")
+            st.caption(f"{pet['nome']} ({pet['chance']}) | +{calcular_bonus_pet(pet):,} por clique")
 
 def get_leaderboard_data():
     return carregar_leaderboard()
@@ -669,9 +677,9 @@ if st.session_state.mundo_atual != 2:
 
     with col3:
         st.write("### Ovo Comum:")
-        st.write(f"Siruriru: 50% (+{1 * mult_sorte} Ponto)")
-        st.write(f"Peppa Pig: 35% (+{5 * mult_sorte} Pontos)")
-        st.write(f"Manoel G: 15% (+{10 * mult_sorte} Pontos)")
+        st.write(f"Siruriru: 50% (+1 Ponto)")
+        st.write(f"Peppa Pig: 35% (+5 Pontos)")
+        st.write(f"Manoel G: 15% (+{10 * mult_sorte} Pontos) 🍀")
         
         custo_ovo1 = 100
         desativar_ovo1 = st.session_state.pontos < custo_ovo1 or loja_em_cooldown
@@ -699,13 +707,13 @@ if st.session_state.mundo_atual != 2:
                 st.image(pet["arquivo"], width=188)
             except Exception:
                 st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada.")
-            st.caption(f"{pet['nome']} ({pet['chance']}) | +{pet['bonus'] * mult_sorte} por clique")
+            st.caption(f"{pet['nome']} ({pet['chance']}) | +{calcular_bonus_pet(pet)} por clique")
 
     with col4:
         st.write("### Ovo Raro:")
-        st.write(f"Dora A.: 50% (+{10 * mult_sorte} Pontos)")
-        st.write(f"Sonic: 35% (+{50 * mult_sorte} Pontos)")
-        st.write(f"Michael J.: 15% (+{100 * mult_sorte} Pontos)")
+        st.write(f"Dora A.: 50% (+10 Pontos)")
+        st.write(f"Sonic: 35% (+50 Pontos)")
+        st.write(f"Michael J.: 15% (+{100 * mult_sorte} Pontos) 🍀")
         
         custo_ovo2 = 1000
         desativar_ovo2 = st.session_state.pontos < custo_ovo2 or loja_em_cooldown
@@ -733,7 +741,7 @@ if st.session_state.mundo_atual != 2:
                 st.image(pet["arquivo"], width=100)
             except Exception:
                 st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada.")
-            st.caption(f"{pet['nome']} ({pet['chance']}) | +{pet['bonus'] * mult_sorte} por clique")
+            st.caption(f"{pet['nome']} ({pet['chance']}) | +{calcular_bonus_pet(pet)} por clique")
 
 st.markdown("---")
 
@@ -829,6 +837,7 @@ st.write("(2.1.1) - Sistema de salvamento de top global em tempo real, correçã
 st.write("(2.2.0) - Adição do Sistema de Mensagem Global (Ferramenta 'msg') no painel de administração")
 st.write("(2.4.0) - Expansão do Painel de Eventos: Adicionados multiplicadores de 2X, 3X, 4X e 5X em sequência!")
 st.write("(2.5.0) - Inclusão do Multiplicador Global de Sorte: Amplie o ganho de todos os ovos e pets ativos por até 5X!")
+st.write("(2.6.0) - Filtro de Sorte: O bônus de Sorte agora só afeta pets ultra-raros com chance de ganho de 15% ou menos.")
 
 # --- 🏆 TABELA DE CLASSIFICAÇÃO GLOBAL ---
 st.markdown("---")
