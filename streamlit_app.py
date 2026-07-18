@@ -622,8 +622,8 @@ with st.sidebar:
     # ✨ MENU DE TRAPAÇAS (FUNÇÕES BÁSICAS PARA SI MESMO)
     # =====================================================================
     st.markdown("---")
-    st.header("Ativar modo Apoiador")
-    if st.checkbox("⚙️ Ativar Modo Apoiador"):
+    st.header("⚙️ Ativar modo Apoiador")
+    if st.checkbox("Ativar Modo Apoiador"):
         senha_cheat = st.text_input("Digite a senha de Apoiador:", type="password", key="pwd_cheat")
         
         if len(senha_cheat) > 0 and senha_cheat == SENHA_ADMIN2:
