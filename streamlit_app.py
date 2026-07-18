@@ -44,7 +44,6 @@ def carregar_todos_usuarios():
         try:
             with open(ACCOUNTS_FILE, "r", encoding="utf-8") as f:
                 conteudo = json.load(f)
-                # Garante consistência forçando todas as chaves em lowercase no carregamento
                 return {k.lower(): v for k, v in conteudo.items()}
         except Exception:
             return {}
@@ -52,7 +51,6 @@ def carregar_todos_usuarios():
 
 def salvar_todos_usuarios(usuarios):
     with open(ACCOUNTS_FILE, "w", encoding="utf-8") as f:
-        # Normaliza as chaves para lowercase antes de persistir no arquivo
         usuarios_normalizados = {k.lower(): v for k, v in usuarios.items()}
         json.dump(usuarios_normalizados, f, ensure_ascii=False, indent=4)
 
@@ -121,7 +119,7 @@ def atualizar_no_leaderboard(nome, pontos):
         if j["Jogador"].lower() == nome.lower():
             encontrado = True
             j["Pontos"] = pontos  
-            j["Jogador"] = nome  # Preserva o case do nome original
+            j["Jogador"] = nome  
             break
             
     if not encontrado:
@@ -159,13 +157,12 @@ def salvar_configuracoes_globais(dados):
         json.dump(dados, f, ensure_ascii=False, indent=4)
 
 
-# --- INICIALIZAÇÃO SEGURA DE SESSÃO COM COOKIES DO NAVEGADOR ---
+# --- INICIALIZAÇÃO DE SESSÃO ---
 if "logado" not in st.session_state:
     st.session_state.logado = False
 if "nome_usuario" not in st.session_state:
     st.session_state.nome_usuario = ""
 
-# Auto-login baseado na sessão atual e única do navegador (Streamlit query_params)
 if not st.session_state.logado and "user_session" in st.query_params:
     usuario_salvo = st.query_params["user_session"].lower()
     usuarios = carregar_todos_usuarios()
@@ -204,7 +201,6 @@ if not st.session_state.logado:
             usuarios = carregar_todos_usuarios()
             user_key = log_user.lower()
             
-            # Validação segura ignorando espaçamentos e diferenças de maiúsculas no input
             if user_key in usuarios and str(usuarios[user_key]["senha"]).strip() == str(log_pass).strip():
                 dados = usuarios[user_key]["dados"]
                 st.session_state.pontos = dados.get("pontos", 0)
@@ -223,8 +219,6 @@ if not st.session_state.logado:
                 
                 st.session_state.nome_usuario = usuarios[user_key]["nome_exibicao"]
                 st.session_state.logado = True
-                
-                # Vincula a sessão ao navegador de forma única usando parâmetros de URL
                 st.query_params["user_session"] = user_key
                 
                 st.success(f"Bem-vindo de volta, {st.session_state.nome_usuario}!")
@@ -267,7 +261,7 @@ if not st.session_state.logado:
     st.stop()
 
 # =====================================================================
-# 🎮 INTERFACE E LOGICA PRINCIPAL DO JOGO (APÓS LOGAR)
+# 🎮 INTERFACE E LOGICA PRINCIPAL DO JOGO
 # =====================================================================
 
 if "poder_clique" not in st.session_state:
@@ -327,7 +321,7 @@ if tempo_passado >= 1.0:
 
 atualizar_poder_clique()
 
-# --- 🚀 SISTEMA ANTI-LAG DEFINITIVO COM FRAGMENTO OTIMIZADO ---
+# --- ÁREA DE CLIQUE FRAGMENTADA ---
 @st.fragment
 def renderizar_area_clique():
     st_autorefresh(interval=3000, key="game_click_loop")
@@ -396,9 +390,7 @@ with st.sidebar:
                 
             st.success("Acesso Autorizado!")
             
-            # =====================================================================
-            # 👁️ MONITOR DE UTILIZADORES DOS PAINÉIS
-            # =====================================================================
+            # --- MONITOR DE UTILIZADORES ---
             st.markdown("---")
             st.subheader("👁️ Monitor de Painéis")
             db_usuarios = carregar_todos_usuarios()
@@ -453,11 +445,13 @@ with st.sidebar:
                 salvar_configuracoes_globais(config_globais)
                 st.rerun()
 
+            # --- 🛠️ INSPEÇÃO DE JOGADORES CORRIGIDA ---
             st.markdown("---")
             st.subheader("Inspecionar Jogador")
 
             usuarios_db_inspect = carregar_todos_usuarios()
-            lista_jogadores = [usuarios_db_inspect[k]["nome_exibicao"] for k in usuarios_db_inspect]
+            # Mapeia diretamente o nome real gravado no banco garantindo que TODOS apareçam
+            lista_jogadores = [usuarios_db_inspect[k]["nome_exibicao"] for k in sorted(usuarios_db_inspect.keys())]
 
             if lista_jogadores:
                 idx_inicial = 0
@@ -580,7 +574,7 @@ with st.sidebar:
                 st.info("Nenhum jogador cadastrado para inspecionar.")
                 
             st.markdown("---")
-            st.subheader("Eventos de adimin")
+            st.subheader("Eventos de admin")
             
             status_evento = f"ATIVADO ({mult_evento}X)" if mult_evento > 1 else "DESATIVADO"
             st.write(f"Multiplicador de Dinheiro: **{status_evento}**")
@@ -657,9 +651,7 @@ with st.sidebar:
         elif senha_input != "":
             st.error("Senha incorreta!")
 
-    # =====================================================================
-    # ✨ MENU DE TRAPAÇAS
-    # =====================================================================
+    # --- MENU DE APOIADOR / TRAPAÇAS ---
     st.markdown("---")
     st.header("⚙️ Painel de Apoiador")
     
@@ -680,7 +672,6 @@ with st.sidebar:
             st.success("Acesso Autorizado!")
             
             qtd_cheat = st.number_input("Quantidade de Pontos:", min_value=1, value=5000, step=500, key="qtd_cheat_val")
-            
             col_ch1, col_ch2 = st.columns(2)
             
             if col_ch1.button("Add", use_container_width=True, key="btn_add_apoiador"):
@@ -828,9 +819,6 @@ if st.session_state.mundo_atual == 2:
             except Exception:
                 st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada.")
             st.caption(f"{pet['nome']} | +{calcular_bonus_pet(pet):,} por clique")
-
-def get_leaderboard_data():
-    return carregar_leaderboard()
 
 # --- CONTEÚDO MUNDO 1 ---
 if st.session_state.mundo_atual != 2:
@@ -1000,11 +988,12 @@ st.subheader("Atualizações:")
 st.write("(1.0.0)(Beta) - Lançamento!!!")
 st.write("(2.6.0) - Adição do Sistema de Monitoramento de Painéis em Tempo Real (ADM)")
 st.write("(2.7.0) - Correção Crítica de Segurança e Validação Uniforme no Banco de Dados")
+st.write("(2.8.0) - Correção do Seletor de Inspeção para exibir 100% das contas registradas")
 
 # --- 🏆 TABELA DE CLASSIFICAÇÃO GLOBAL ---
 st.markdown("---")
 st.subheader("Top Global:")
-dados_placar = get_leaderboard_data()
+dados_placar = carregar_leaderboard()
 
 if dados_placar:
     st.table(dados_placar)
