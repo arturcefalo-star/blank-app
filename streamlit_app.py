@@ -846,9 +846,8 @@ st.write("(1.7.8) - Adição do segundo mundo!!! novas melhorias, nova interface
 st.write("(1.8.9) - Adição de 2 novos ovos(segundo mundo), 6 novos pets e correção de bugs")
 st.write("(2.0.0) - Adição de Sistema de login com senha e correção de bugs")
 st.write("(2.1.1) - Sistema de salvamento de top global em tempo real, correção dos botões de ban, adicionar pontos e remover pontos(ADM) e correção de bugs")
-st.write("(2.2.0) - Adição do Sistema de Mensagem Global (Ferramenta 'msg') no painel de administração")
-st.write("(2.4.0) - Expansão do Painel de Eventos: Adicionados multiplicadores de 2X, 3X, 4X e 5X em sequência!")
-st.write("(2.6.0) - Filtro de Sorte Real: O bônus multiplicador de Sorte agora multiplica diretamente a PORCENTAGEM (%) de drop dos pets raros (Manoel G., Michael J., Tame, Pintinho A.) reduzindo as chances dos comuns proporcionalmente.")
+st.write("(2.2.2) - Adição do Sistema de Mensagem Global (ADM)")
+st.write("(2.3.3) - Adição de novas funções de multiplicação de sorte e dinheiro (ADM)")
 
 # --- 🏆 TABELA DE CLASSIFICAÇÃO GLOBAL ---
 st.markdown("---")
