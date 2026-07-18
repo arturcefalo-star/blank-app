@@ -496,7 +496,7 @@ with st.sidebar:
                 st.rerun()
 
             st.markdown("---")
-            st.subheader("🔍 Inspecionar Jogador")
+            st.subheader("Inspecionar Jogador")
 
             usuarios_db_inspect = carregar_todos_usuarios()
             lista_jogadores = [usuarios_db_inspect[k]["nome_exibicao"] for k in usuarios_db_inspect]
@@ -508,7 +508,7 @@ with st.sidebar:
                     key_inspect = jogador_selecionado.lower()
                     dados_player = usuarios_db_inspect[key_inspect]["dados"]
                     
-                    st.markdown(f"### 📊 Status de: **{jogador_selecionado}**")
+                    st.markdown(f"### Status de: **{jogador_selecionado}**")
                     
                     col_ins1, col_ins2, col_ins3 = st.columns(3)
                     col_ins1.metric("Pontos", f"{dados_player.get('pontos', 0):,}")
@@ -517,24 +517,24 @@ with st.sidebar:
                     
                     mundo_txt = "Mundo 2" if dados_player.get("mundo_atual", 1) == 2 else "Mundo 1"
                     m2_liberado = "Sim" if dados_player.get("mundo_2_desbloqueado", False) else "Não"
-                    st.write(f"🌍 **Mundo Atual:** {mundo_txt} | 🔓 **Mundo 2 Desbloqueado?** {m2_liberado}")
+                    st.write(f" **Mundo Atual:** {mundo_txt} | **Mundo 2 Desbloqueado?** {m2_liberado}")
                     
-                    st.markdown("🐾 **Pets Equipados:**")
+                    st.markdown(" **Pets Equipados:**")
                     col_p1, col_p2 = st.columns(2)
                     
                     with col_p1:
                         st.write("**Mundo 1 Slots:**")
                         p1 = dados_player.get("pet_slot_1")
                         p2 = dados_player.get("pet_slot_2")
-                        st.write(f"🔹 Slot 1: {p1['nome']} (+{p1['bonus']:,})" if p1 else "🔹 Slot 1: Vazio")
-                        st.write(f"🔹 Slot 2: {p2['nome']} (+{p2['bonus']:,})" if p2 else "🔹 Slot 2: Vazio")
+                        st.write(f"Slot 1: {p1['nome']} (+{p1['bonus']:,})" if p1 else "Slot 1: Vazio")
+                        st.write(f"Slot 2: {p2['nome']} (+{p2['bonus']:,})" if p2 else "Slot 2: Vazio")
                         
                     with col_p2:
                         st.write("**Mundo 2 Slots:**")
                         pm1 = dados_player.get("pet_slot_m2_1")
                         pm2 = dados_player.get("pet_slot_m2_2")
-                        st.write(f"🔸 Slot 1: {pm1['nome']} (+{pm1['bonus']:,})" if pm1 else "🔸 Slot 1: Vazio")
-                        st.write(f"🔸 Slot 2: {pm2['nome']} (+{pm2['bonus']:,})" if pm2 else "🔸 Slot 2: Vazio")
+                        st.write(f"Slot 1: {pm1['nome']} (+{pm1['bonus']:,})" if pm1 else "Slot 3: Vazio")
+                        st.write(f"Slot 2: {pm2['nome']} (+{pm2['bonus']:,})" if pm2 else "Slot 4: Vazio")
             else:
                 st.info("Nenhum jogador cadastrado para inspection.")
                 
