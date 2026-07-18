@@ -1,4 +1,4 @@
-Import st.streamlit as st
+Import streamlit as st
 import time
 import random
 import json
