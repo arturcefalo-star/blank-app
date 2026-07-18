@@ -137,7 +137,7 @@ if "nome_usuario" not in st.session_state:
 # 🔐 TELA DE LOGIN / REGISTRO
 # =====================================================================
 if not st.session_state.logado:
-    st.title("🎮 Clicker Game - Login")
+    st.title("Clicker Game - Login")
     
     aba_login, aba_registro = st.tabs(["Entrar na Conta", "Criar Nova Conta"])
     
