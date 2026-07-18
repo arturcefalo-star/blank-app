@@ -35,6 +35,7 @@ SENHA_ADMIN = "XXxx67xxXX"
 ACCOUNTS_FILE = "usuarios.json"
 LEADERBOARD_FILE = "leaderboard.json"
 AVISOS_FILE = "avisos.json"
+SESSION_FILE = "sessao_ativa.json"  # Arquivo que lembra quem está logado
 
 # --- FUNÇÕES DE GERENCIAMENTO DE USUÁRIOS E SALVAMENTO ---
 
@@ -65,7 +66,7 @@ def salvar_progresso_atual():
                 "pet_slot_2": st.session_state.pet_slot_2,
                 "pet_slot_m2_1": st.session_state.pet_slot_m2_1,
                 "pet_slot_m2_2": st.session_state.pet_slot_m2_2,
-                "ultimo_tick": time.time(),
+                "ultimo_tick": st.session_state.ultimo_tick,
                 "mundo_2_desbloqueado": st.session_state.mundo_2_desbloqueado,
                 "mundo_atual": st.session_state.mundo_atual
             }
@@ -128,7 +129,6 @@ def remover_jogador_leaderboard(nome):
         except Exception:
             pass
 
-# --- FUNÇÕES DO SISTEMA DE MENSAGEM E EVENTO GLOBAL ---
 def carregar_configuracoes_globais():
     if os.path.exists(AVISOS_FILE):
         try:
@@ -147,12 +147,55 @@ def salvar_configuracoes_globais(dados):
     with open(AVISOS_FILE, "w", encoding="utf-8") as f:
         json.dump(dados, f, ensure_ascii=False, indent=4)
 
+# --- FUNÇÕES DE AUTO-LOGIN (PERSISTÊNCIA DE SESSÃO) ---
+def salvar_sessao_ativa(username):
+    with open(SESSION_FILE, "w", encoding="utf-8") as f:
+        json.dump({"usuario_ativo": username}, f)
+
+def limpar_sessao_ativa():
+    if os.path.exists(SESSION_FILE):
+        try:
+            os.remove(SESSION_FILE)
+        except Exception:
+            pass
+
+def verificar_auto_login():
+    if os.path.exists(SESSION_FILE):
+        try:
+            with open(SESSION_FILE, "r", encoding="utf-8") as f:
+                dados_sessao = json.load(f)
+                return dados_sessao.get("usuario_ativo", "").lower()
+        except Exception:
+            return None
+    return None
+
 
 # --- INICIALIZAÇÃO DE SESSÃO DO LOGIN ---
 if "logado" not in st.session_state:
     st.session_state.logado = False
 if "nome_usuario" not in st.session_state:
     st.session_state.nome_usuario = ""
+
+# --- CHECAGEM AUTOMÁTICA DE LOGIN (EXECUTA APENAS UMA VEZ NO COMPONENT LOAD) ---
+if not st.session_state.logado:
+    usuario_salvo = verificar_auto_login()
+    if usuario_salvo:
+        usuarios = carregar_todos_usuarios()
+        if usuario_salvo in usuarios:
+            dados = usuarios[usuario_salvo]["dados"]
+            st.session_state.pontos = dados.get("pontos", 0)
+            st.session_state.poder_base = dados.get("poder_base", 1)
+            st.session_state.pontos_por_segundo = dados.get("pontos_por_segundo", 0)
+            st.session_state.pet_slot_1 = dados.get("pet_slot_1", None)
+            st.session_state.pet_slot_2 = dados.get("pet_slot_2", None)
+            st.session_state.pet_slot_m2_1 = dados.get("pet_slot_m2_1", None)
+            st.session_state.pet_slot_m2_2 = dados.get("pet_slot_m2_2", None)
+            st.session_state.ultimo_tick = dados.get("ultimo_tick", time.time())
+            st.session_state.mundo_2_desbloqueado = dados.get("mundo_2_desbloqueado", False)
+            st.session_state.mundo_atual = dados.get("mundo_atual", 1)
+            st.session_state.pontos_leaderboard_cache = dados.get("pontos", 0)
+            st.session_state.nome_usuario = usuarios[usuario_salvo]["nome_exibicao"]
+            st.session_state.logado = True
 
 # =====================================================================
 # 🔐 TELA DE LOGIN / REGISTRO
@@ -180,13 +223,17 @@ if not st.session_state.logado:
                 st.session_state.pet_slot_2 = dados.get("pet_slot_2", None)
                 st.session_state.pet_slot_m2_1 = dados.get("pet_slot_m2_1", None)
                 st.session_state.pet_slot_m2_2 = dados.get("pet_slot_m2_2", None)
-                st.session_state.ultimo_tick = time.time()
+                st.session_state.ultimo_tick = dados.get("ultimo_tick", time.time())
                 st.session_state.mundo_2_desbloqueado = dados.get("mundo_2_desbloqueado", False)
                 st.session_state.mundo_atual = dados.get("mundo_atual", 1)
                 st.session_state.pontos_leaderboard_cache = dados.get("pontos", 0)
                 
                 st.session_state.nome_usuario = usuarios[user_key]["nome_exibicao"]
                 st.session_state.logado = True
+                
+                # Salva a sessão ativa localmente para entrar direto da próxima vez
+                salvar_sessao_ativa(user_key)
+                
                 st.success(f"Bem-vindo de volta, {st.session_state.nome_usuario}!")
                 time.sleep(0.5)
                 st.rerun()
@@ -237,8 +284,9 @@ if "confirmando_reset" not in st.session_state:
     st.session_state.confirmando_reset = False
 if "pontos_leaderboard_cache" not in st.session_state:
     st.session_state.pontos_leaderboard_cache = st.session_state.pontos
+if "ultimo_tick" not in st.session_state:
+    st.session_state.ultimo_tick = time.time()
 
-# Buscar configurações dinâmicas do servidor
 config_globais = carregar_configuracoes_globais()
 aviso_sistema = config_globais.get("mensagem", "")
 mult_evento = config_globais.get("multiplicador_evento", 1) 
@@ -270,25 +318,40 @@ def calcular_chances_ovo(c1, c2, c3_base):
 
 atualizar_poder_clique()
 
-# --- 🚀 SISTEMA ANTI-LAG: REFRESH PASSIVO OTIMIZADO ---
-# Aumentado para 3000ms (3 segundos) para evitar que a interface trave ou pisque loucamente.
-st_autorefresh(interval=3000, key="global_loop")
+# --- 🚀 SISTEMA ANTI-LAG DEFINITIVO COM FRAGMENTO OTIMIZADO ---
+@st.fragment
+def renderizar_area_clique():
+    st_autorefresh(interval=3000, key="game_click_loop")
+    
+    agora = time.time()
+    tempo_passado = agora - st.session_state.ultimo_tick
 
-if "ultimo_tick" not in st.session_state:
-    st.session_state.ultimo_tick = time.time()
+    if tempo_passado >= 1.0:
+        ciclos = int(tempo_passado)
+        st.session_state.pontos += st.session_state.pontos_por_segundo * ciclos
+        st.session_state.ultimo_tick = agora - (tempo_passado - ciclos)
+        st.session_state.pontos_leaderboard_cache = st.session_state.pontos
+        salvar_progresso_atual()
 
-agora = time.time()
-tempo_passado = agora - st.session_state.ultimo_tick
+    st.metric(label="Pontos Atuais", value=st.session_state.pontos)
+    
+    if st.session_state.mundo_atual == 2:
+        if st.button("            Click Here          ", key="click_m2_btn", use_container_width=True):
+            st.session_state.pontos += (st.session_state.poder_clique * 2)
+            st.session_state.pontos_leaderboard_cache = st.session_state.pontos
+            salvar_progresso_atual()
+        st.write(f"**Poder de clique:** {st.session_state.poder_clique * 2} (2X do Mundo)")
+    else:
+        if st.button("            Click Here          ", key="click_m1_btn", use_container_width=True):
+            st.session_state.pontos += st.session_state.poder_clique
+            st.session_state.pontos_leaderboard_cache = st.session_state.pontos
+            salvar_progresso_atual()
+        st.write(f"**Poder de clique:** {st.session_state.poder_clique}")
+        
+    st.write(f"**Pontos por segundo:** {st.session_state.pontos_por_segundo}")
 
-# Sistema anti-lag calcula matematicamente o tempo acumulado offline/em background
-if tempo_passado >= 1.0:
-    ciclos = int(tempo_passado)
-    st.session_state.pontos += st.session_state.pontos_por_segundo * ciclos
-    st.session_state.ultimo_tick = agora - (tempo_passado - ciclos)
-    st.session_state.pontos_leaderboard_cache = st.session_state.pontos
-    salvar_progresso_atual()
 
-# --- SINCRONIZAÇÃO SEGURA DO JOGADOR LOGADO ---
+# Sincronização em background segura do placar
 if st.session_state.nome_usuario != "" and os.path.exists(LEADERBOARD_FILE):
     try:
         with open(LEADERBOARD_FILE, "r", encoding="utf-8") as f:
@@ -303,7 +366,6 @@ if st.session_state.nome_usuario != "" and os.path.exists(LEADERBOARD_FILE):
     except Exception:
         pass
 
-# COOLDOWN DE COMPRA
 loja_em_cooldown = (time.time() - st.session_state.ultima_compra) < 0.6
 
 # --- BARRA LATERAL: LOGOUT E PAINEL ADMIN ---
@@ -311,6 +373,7 @@ with st.sidebar:
     st.write(f"Conectado como: **{st.session_state.nome_usuario}**")
     if st.button("Sair da Conta (Logout)", type="secondary"):
         salvar_progresso_atual()
+        limpar_sessao_ativa()  # Apaga os dados salvos para não logar sozinho da próxima vez
         st.session_state.logado = False
         st.session_state.nome_usuario = ""
         st.rerun()
@@ -416,7 +479,6 @@ with st.sidebar:
             else:
                 st.info("Nenhum jogador registrado no placar ainda.")
                 
-            # --- FERRAMENTA MSG ---
             st.markdown("---")
             st.subheader("Mensagem Global")
             nova_msg = st.text_input("Texto Global:", value=aviso_sistema, placeholder="Digite o aviso geral aqui...")
@@ -434,7 +496,6 @@ with st.sidebar:
                 salvar_configuracoes_globais(config_globais)
                 st.rerun()
 
-            # --- 🔍 FERRAMENTA DE INSPEÇÃO DE JOGADORES (ADM) ---
             st.markdown("---")
             st.subheader("🔍 Inspecionar Jogador")
 
@@ -478,11 +539,9 @@ with st.sidebar:
             else:
                 st.info("Nenhum jogador cadastrado para inspection.")
                 
-            # --- 🏆 SEÇÃO DE EVENTOS DO JOGO ---
             st.markdown("---")
             st.subheader("Eventos de adimin")
             
-            # Multiplicador de Dinheiro
             status_evento = f"ATIVADO ({mult_evento}X)" if mult_evento > 1 else "DESATIVADO"
             st.write(f"Multiplicador de Dinheiro: **{status_evento}**")
             
@@ -519,7 +578,6 @@ with st.sidebar:
                 time.sleep(0.4)
                 st.rerun()
 
-            # Multiplicador de Sorte (Porcentagem)
             status_sorte = f"ATIVADO ({mult_sorte}X)" if mult_sorte > 1 else "DESATIVADO"
             st.write(f"Multiplicador de Sorte: **{status_sorte}**")
 
@@ -610,17 +668,8 @@ if st.session_state.mundo_atual == 2:
     except Exception:
         pass
 
-    # --- ANTI-LAG: st.rerun() removido do botão de clique manual ---
-    if st.button("            Click Here          ", key="click_m2_btn"):
-        st.session_state.pontos += (st.session_state.poder_clique * 2)
-        st.session_state.pontos_leaderboard_cache = st.session_state.pontos
-        salvar_progresso_atual()
-
-    st.metric(label="Pontos Atuais", value=st.session_state.pontos)
-    
-    col_status1, col_status2 = st.columns(2)
-    col_status1.write(f"**Poder de clique:** {st.session_state.poder_clique * 2} (2X do Mundo)")
-    col_status2.write(f"**Pontos por segundo:** {st.session_state.pontos_por_segundo}")
+    # CHAMADA DO FRAGMENTO ISOLADO DO MUNDO 2 (SEM PISCAR TELA)
+    renderizar_area_clique()
 
     st.markdown("---")
     st.subheader("Comprar ovos:")
@@ -709,16 +758,8 @@ if st.session_state.mundo_atual != 2:
     except Exception:
         st.caption("🎵 Arquivo 'musica67.mp3' não encontrado.")
 
-    # --- ANTI-LAG: st.rerun() removido do botão de clique manual ---
-    if st.button("            Click Here          ", key="click_m1_btn"):
-        st.session_state.pontos += st.session_state.poder_clique
-        st.session_state.pontos_leaderboard_cache = st.session_state.pontos
-        salvar_progresso_atual()
-
-    st.metric(label="Pontos Atuais", value=st.session_state.pontos)
-    col_status1, col_status2 = st.columns(2)
-    col_status1.write(f"**Poder de clique:** {st.session_state.poder_clique}")
-    col_status2.write(f"**Pontos por segundo:** {st.session_state.pontos_por_segundo}")
+    # CHAMADA DO FRAGMENTO ISOLADO DO MUNDO 1 (SEM PISCAR TELA)
+    renderizar_area_clique()
 
     st.markdown("---")
     st.subheader("Comprar Ovos:")
@@ -869,7 +910,6 @@ with col2:
                     time.sleep(0.1)
                     st.rerun()
 
-# --- ATUALIZAÇÕES AUTOMÁTICAS NO LEADERBOARD ---
 atualizar_no_leaderboard(st.session_state.nome_usuario, st.session_state.pontos)
 
 # --- LOG DE ATUALIZAÇÕES ---
@@ -890,6 +930,7 @@ st.write("(2.1.1) - Sistema de salvamento de top global in tempo real, correçã
 st.write("(2.2.2) - Adição do Sistema de Mensagem Global (ADM)")
 st.write("(2.3.3) - Adição de novas funções de multiplicação de sorte e dinheiro (ADM)")
 st.write("(2.4.4) - Adição do Sistema de Inspeção de Jogadores (ADM)")
+st.write("(2.5.5) - Integração do Sistema de Login Automático de Sessão")
 
 # --- 🏆 TABELA DE CLASSIFICAÇÃO GLOBAL ---
 st.markdown("---")
@@ -914,6 +955,7 @@ else:
     with col_sim:
         if st.button("SIM, deletar tudo", type="primary", use_container_width=True):
             remover_jogador_leaderboard(st.session_state.nome_usuario)
+            limpar_sessao_ativa()
             
             usuarios = carregar_todos_usuarios()
             user_key = st.session_state.nome_usuario.lower()
