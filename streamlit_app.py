@@ -115,7 +115,7 @@ def atualizar_no_leaderboard(nome, pontos):
             j["Jogador"] = nome
             break
             
-    if not encontrado:
+    if not encontrar:
         leaderboard.append({"Jogador": nome, "Pontos": pontos})
     
     leaderboard = sorted(leaderboard, key=lambda x: x["Pontos"], reverse=True)
@@ -496,14 +496,20 @@ with st.sidebar:
             st.markdown("---")
             st.subheader("🔍 Inspecionar Jogador")
 
+            # --- CORREÇÃO DA INSPEÇÃO AQUI: PUXA TODOS DO ARQUIVO DE USUÁRIOS DINAMICAMENTE ---
             usuarios_db_inspect = carregar_todos_usuarios()
-            lista_jogadores = [usuarios_db_inspect[k]["nome_exibicao"] for k in usuarios_db_inspect]
+            
+            # Mapeamento do nome_exibicao original associado à sua chave em minúsculas
+            mapeamento_jogadores = {usuarios_db_inspect[k]["nome_exibicao"]: k for k in usuarios_db_inspect if "nome_exibicao" in usuarios_db_inspect[k]}
+            lista_jogadores = list(mapeamento_jogadores.keys())
 
             if lista_jogadores:
+                # Selectbox exibindo todos os nomes cadastrados perfeitamente
                 jogador_selecionado = st.selectbox("Selecione um jogador do banco de dados:", lista_jogadores, key="inspect_select")
                 
                 if st.button("Inspecionar Dados", use_container_width=True):
-                    key_inspect = jogador_selecionado.lower()
+                    # Traduz o nome selecionado de volta para a chave correta no banco de dados
+                    key_inspect = mapeamento_jogadores[jogador_selecionado]
                     dados_player = usuarios_db_inspect[key_inspect]["dados"]
                     visto_ultimo = usuarios_db_inspect[key_inspect].get("ultimo_login", "Não registrado")
                     
