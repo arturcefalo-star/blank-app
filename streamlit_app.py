@@ -32,7 +32,7 @@ CUSTO_OVO_MUNDO_2_CARO = 500000000   # Custo do segundo ovo do Mundo 2
 # =====================================================================
 
 SENHA_ADMIN = "XXxx67xxXX"
-SENHA_APOIADOR = "APOIO67xx"  # Nova senha para o painel de apoiador
+SENHA_APOIADOR = "67AP0IO67"  # Nova senha para o painel de apoiador
 ACCOUNTS_FILE = "usuarios.json"
 LEADERBOARD_FILE = "leaderboard.json"
 AVISOS_FILE = "avisos.json"
