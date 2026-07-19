@@ -32,6 +32,7 @@ CUSTO_OVO_MUNDO_2_CARO = 500000000   # Custo do segundo ovo do Mundo 2
 # =====================================================================
 
 SENHA_ADMIN = "XXxx67xxXX"
+SENHA_APOIADOR = "APOIO67xx"  # Nova senha para o painel de apoiador
 ACCOUNTS_FILE = "usuarios.json"
 LEADERBOARD_FILE = "leaderboard.json"
 AVISOS_FILE = "avisos.json"
@@ -114,7 +115,6 @@ def atualizar_no_leaderboard(nome, pontos):
             j["Jogador"] = nome
             break
             
-    # CORRIGIDO: Agora usa a variável correta 'encontrado'
     if not encontrado:
         leaderboard.append({"Jogador": nome, "Pontos": pontos})
     
@@ -360,7 +360,7 @@ if st.session_state.nome_usuario != "" and os.path.exists(LEADERBOARD_FILE):
 
 loja_em_cooldown = (time.time() - st.session_state.ultima_compra) < 0.6
 
-# --- BARRA LATERAL: LOGOUT E PAINEL ADMIN ---
+# --- BARRA LATERAL: LOGOUT, PAINEL ADMIN E PAINEL APOIADOR ---
 with st.sidebar:
     st.write(f"Conectado como: **{st.session_state.nome_usuario}**")
     if st.button("Sair da Conta (Logout)", type="secondary"):
@@ -371,6 +371,8 @@ with st.sidebar:
         st.rerun()
         
     st.markdown("---")
+    
+    # 👑 PAINEL DE ADMIN
     st.header("⚙️ Painel de Admin")
     if st.checkbox("Ativar Modo Administrador"):
         senha_input = st.text_input("Digite a senha de Admin:", type="password")
@@ -611,6 +613,55 @@ with st.sidebar:
                 
         elif senha_input != "":
             st.error("Senha incorreta!")
+
+    st.markdown("---")
+
+    # ⭐ PAINEL DE APOIADOR
+    st.header("⭐ Painel de Apoiador")
+    if st.checkbox("Ativar Modo Apoiador"):
+        senha_apoio_input = st.text_input("Digite a senha de Apoiador:", type="password", key="senha_apoio_input")
+        
+        if len(senha_apoio_input) > 0 and senha_apoio_input == SENHA_APOIADOR:
+            st.success("Acesso Autorizado, obrigado pelo apoio!")
+            
+            st.subheader("Seu Modificador de Pontos")
+            qtd_pontos_apoio = st.number_input("Quantidade de pontos para Si Mesmo:", min_value=1, value=50000, step=1000, key="qtd_pontos_apoio")
+            
+            st.subheader("Gerenciar Meu Saldo")
+            
+            col_apoio1, col_apoio2, col_apoio3 = st.columns([2, 1, 1])
+            col_apoio1.write(f"**Você ({st.session_state.nome_usuario})**: {st.session_state.pontos} pts")
+            
+            if col_apoio2.button("Add", key="add_pontos_apoio", use_container_width=True):
+                usuarios_db = carregar_todos_usuarios()
+                key_jogador = st.session_state.nome_usuario.lower()
+                
+                if key_jogador in usuarios_db:
+                    usuarios_db[key_jogador]["dados"]["pontos"] = max(0, usuarios_db[key_jogador]["dados"].get("pontos", 0) + qtd_pontos_apoio)
+                    salvar_todos_usuarios(usuarios_db)
+                    
+                st.session_state.pontos += qtd_pontos_apoio
+                st.session_state.pontos_leaderboard_cache = st.session_state.pontos
+                
+                atualizar_no_leaderboard(st.session_state.nome_usuario, st.session_state.pontos)
+                st.rerun()
+
+            if col_apoio3.button("Rem", key="rem_pontos_apoio", use_container_width=True):
+                usuarios_db = carregar_todos_usuarios()
+                key_jogador = st.session_state.nome_usuario.lower()
+                
+                if key_jogador in usuarios_db:
+                    usuarios_db[key_jogador]["dados"]["pontos"] = max(0, usuarios_db[key_jogador]["dados"].get("pontos", 0) - qtd_pontos_apoio)
+                    salvar_todos_usuarios(usuarios_db)
+                    
+                st.session_state.pontos = max(0, st.session_state.pontos - qtd_pontos_apoio)
+                st.session_state.pontos_leaderboard_cache = st.session_state.pontos
+                
+                atualizar_no_leaderboard(st.session_state.nome_usuario, st.session_state.pontos)
+                st.rerun()
+                
+        elif senha_apoio_input != "":
+            st.error("Senha de apoiador incorreta!")
 
 # --- CONTROLE DE VIAGEM ENTRE MUNDOS ---
 st.title("Clicker Game")
