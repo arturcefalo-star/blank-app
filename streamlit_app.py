@@ -564,7 +564,7 @@ with st.sidebar:
                 col_ins2.metric("Poder Base", f"{dados_player.get('poder_base', 1):,}")
                 col_ins3.metric("Pontos/Seg", f"{dados_player.get('pontos_por_segundo', 0):,}")
                 
-                st.write(f"🔮 **Cristais:** {dados_player.get('cristais', 0)}")
+                st.write(f" **Renascimentos:** {dados_player.get('cristais', 0)}")
                 mundo_txt = "Mundo 2" if dados_player.get("mundo_atual", 1) == 2 else "Mundo 1"
                 m2_liberado = "Sim" if dados_player.get("mundo_2_desbloqueado", False) else "Não"
                 st.write(f" **Mundo Atual:** {mundo_txt} |  **Mundo 2 Desbloqueado?** {m2_liberado}")
@@ -1115,9 +1115,9 @@ with abas_principais[1]:
         if custo_evolucao < 500: custo_evolucao = 500 # Custo mínimo
         
         st.markdown(f"### Estatísticas de upgrade:")
-        st.write(f"🐾 **Pet:** {pet_objeto['nome']} | ⭐ **Nível Atual:** {nivel_atual} $\rightarrow$ **Próximo:** {proximo_nivel}")
-        st.write(f"📊 **Bônus Atual:** {calcular_bonus_pet(pet_objeto):,} $\rightarrow$ **Novo Bônus:** {pet_objeto['bonus'] * proximo_nivel:,}")
-        st.write(f"🪙 **Custo da Evolução:** {custo_evolucao:,} Pontos")
+        st.write(f" **Pet:** {pet_objeto['nome']} | **Nível Atual:** {nivel_atual} $\rightarrow$ **Próximo:** {proximo_nivel}")
+        st.write(f" **Bônus Atual:** {calcular_bonus_pet(pet_objeto):,} $\rightarrow$ **Novo Bônus:** {pet_objeto['bonus'] * proximo_nivel:,}")
+        st.write(f" **Custo da Evolução:** {custo_evolucao:,} Pontos")
         
         pode_evoluir = st.session_state.pontos >= custo_evolucao
         if st.button(f"Evoluir {pet_objeto['nome']} para Nível {proximo_nivel}", disabled=not pode_evoluir, use_container_width=True):
@@ -1132,14 +1132,14 @@ with abas_principais[1]:
             
             atualizar_poder_clique()
             salvar_progresso_atual()
-            st.success(f"✨ Parabéns! Seu {pet_objeto['nome']} evoluiu para o Nível {proximo_nivel}!")
+            st.success(f"Parabéns! Seu {pet_objeto['nome']} evoluiu para o Nível {proximo_nivel}!")
             time.sleep(0.5)
             st.rerun()
 
 with abas_principais[2]:
-    st.subheader("🔮 Altar de Renascimento Sagrado")
-    st.write("Ao atingir o limite cósmico de pontos, você pode transcender sua alma. Você perderá seus pontos e upgrades comprados, mas reterá seus pets e ganhará **Cristais de Renascimento**.")
-    st.info("💡 **Benefício permanente:** Cada Cristal de Renascimento concede **+50% de produção de pontos globais** (afeta cliques e passivos!).")
+    st.subheader("Renascimento")
+    st.write("Ao conseguir os pontos suficientes para renascer, você ganhará **Pontos de Renascimento**.")
+    st.info("**Multiplicação permanente:** Cada Ponto de Renascimento adiciona **+50% de bônus em todas as formas de ganhar pontos** (afeta cliques e auto cliques!).")
     
     META_REBIRTH = 1000000000 # 1 Bilhão
     
@@ -1148,23 +1148,28 @@ with abas_principais[2]:
     pode_renascer = st.session_state.pontos >= META_REBIRTH
     
     if pode_renascer:
-        st.success("✨ Os portais estão abertos! Você está pronto para Renascer.")
-        if st.button("🌟 REALIZAR RENASCIMENTO (+1 Cristal Coletado)", type="primary", use_container_width=True):
+        st.success("Você está pronto para Renascer.")
+        if st.button("REALIZAR RENASCIMENTO (+1 Ponto Coletado)", type="primary", use_container_width=True):
             st.session_state.cristais += 1
             st.session_state.pontos = 0
             st.session_state.poder_base = 1
             st.session_state.pontos_por_segundo = 0
             st.session_state.mundo_2_desbloqueado = False
             st.session_state.mundo_atual = 1
+
+            st.session_state.pet_slot_1 = None
+            st.session_state.pet_slot_2 = None
+            st.session_state.pet_slot_m2_1 = None
+            st.session_state.pet_slot_m2_2 = None
             
             atualizar_poder_clique()
             salvar_progresso_atual()
             st.balloons()
-            st.success("🔮 Você renasceu! Sinta o novo poder correndo pelas suas veias.")
+            st.success("Você renasceu! Você agora está recebendo +50% de bônus global!")
             time.sleep(1)
             st.rerun()
     else:
-        st.error(f"Faltam {META_REBIRTH - st.session_state.pontos:,} pontos para que você possa coletar um Cristal de Renascimento.")
+        st.error(f"Faltam {META_REBIRTH - st.session_state.pontos:,} pontos para você renascer")
 
 atualizar_no_leaderboard(st.session_state.nome_usuario, st.session_state.pontos)
 
