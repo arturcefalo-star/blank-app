@@ -416,27 +416,22 @@ with st.sidebar:
                     col_adm1, col_adm2, col_adm3, col_adm4, col_adm5 = st.columns([2, 0.8, 0.8, 0.8, 1.2])
                     col_adm1.write(f"**{prefixo_lista}{name_jogador}**: {jogador['Pontos']} pts")
                     
+                    # 🔴 BOTÃO DE BAN TOTALMENTE REFORMULADO (DELETA A CONTA PRA SEMPRE)
                     if col_adm2.button("Ban", key=f"del_{key_jogador}_{i}"):
+                        # 1. Remove permanentemente do arquivo de contas (usuarios.json)
                         if key_jogador in usuarios_db:
-                            usuarios_db[key_jogador]["dados"] = {
-                                "pontos": 0, "poder_base": 1, "pontos_por_segundo": 0,
-                                "pet_slot_1": None, "pet_slot_2": None,
-                                "pet_slot_m2_1": None, "pet_slot_m2_2": None,
-                                "ultimo_tick": time.time(), "mundo_2_desbloqueado": False, "mundo_atual": 1,
-                                "titulo": ""
-                            }
+                            del usuarios_db[key_jogador]
                             salvar_todos_usuarios(usuarios_db)
                         
-                        for j in placar_completo:
-                            if j["Jogador"].lower() == key_jogador:
-                                j["Points"] = 0
-                                if "Pontos" in j:
-                                    j["Pontos"] = 0
-                                break
-                                
+                        # 2. Remove permanentemente do leaderboard global
+                        placar_completo = [j for j in placar_completo if j["Jogador"].lower() != key_jogador]
                         salvar_leaderboard_completo(placar_completo)
 
+                        # 3. Se o administrador baniu a própria conta logada atual, desloga na hora
                         if key_jogador == st.session_state.nome_usuario.lower():
+                            limpar_sessao_ativa()
+                            st.session_state.logado = False
+                            st.session_state.nome_usuario = ""
                             st.session_state.pontos = 0
                             st.session_state.poder_base = 1
                             st.session_state.pontos_por_segundo = 0
