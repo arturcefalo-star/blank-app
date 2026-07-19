@@ -378,7 +378,7 @@ with st.sidebar:
         senha_input = st.text_input("Digite a senha de Admin:", type="password")
         
         if len(senha_input) > 0 and senha_input == SENHA_ADMIN:
-            st.success("Acesso Autorizado!")
+            st.success("Success!")
             
             st.subheader("Modificador de Pontos")
             qtd_pontos = st.number_input("Quantidade de pontos para Add/Rem:", min_value=1, value=1000, step=100)
@@ -491,7 +491,7 @@ with st.sidebar:
                 st.rerun()
 
             st.markdown("---")
-            st.subheader("🔍 Inspecionar Jogador")
+            st.subheader("Inspecionar Jogador")
 
             usuarios_db_inspect = carregar_todos_usuarios()
             mapeamento_jogadores = {usuarios_db_inspect[k]["nome_exibicao"]: k for k in usuarios_db_inspect if "nome_exibicao" in usuarios_db_inspect[k]}
@@ -505,8 +505,8 @@ with st.sidebar:
                     dados_player = usuarios_db_inspect[key_inspect]["dados"]
                     visto_ultimo = usuarios_db_inspect[key_inspect].get("ultimo_login", "Não registrado")
                     
-                    st.markdown(f"### 📊 Status de: **{jogador_selecionado}**")
-                    st.write(f"🕒 **Último Login Realizado:** {visto_ultimo}")
+                    st.markdown(f"### Status de: **{jogador_selecionado}**")
+                    st.write(f" **Último Login Realizado:** {visto_ultimo}")
                     
                     col_ins1, col_ins2, col_ins3 = st.columns(3)
                     col_ins1.metric("Pontos", f"{dados_player.get('pontos', 0):,}")
@@ -515,24 +515,24 @@ with st.sidebar:
                     
                     mundo_txt = "Mundo 2" if dados_player.get("mundo_atual", 1) == 2 else "Mundo 1"
                     m2_liberado = "Sim" if dados_player.get("mundo_2_desbloqueado", False) else "Não"
-                    st.write(f"🌍 **Mundo Atual:** {mundo_txt} | 🔓 **Mundo 2 Desbloqueado?** {m2_liberado}")
+                    st.write(f" **Mundo Atual:** {mundo_txt} |  **Mundo 2 Desbloqueado?** {m2_liberado}")
                     
-                    st.markdown("🐾 **Pets Equipados:**")
+                    st.markdown(" **Pets Equipados:**")
                     col_p1, col_p2 = st.columns(2)
                     
                     with col_p1:
                         st.write("**Mundo 1 Slots:**")
                         p1 = dados_player.get("pet_slot_1")
                         p2 = dados_player.get("pet_slot_2")
-                        st.write(f"🔹 Slot 1: {p1['nome']} (+{p1['bonus']:,})" if p1 else "🔹 Slot 1: Vazio")
-                        st.write(f"🔹 Slot 2: {p2['nome']} (+{p2['bonus']:,})" if p2 else "🔹 Slot 2: Vazio")
+                        st.write(f"Slot 1: {p1['nome']} (+{p1['bonus']:,})" if p1 else "Slot 1: Vazio")
+                        st.write(f"Slot 2: {p2['nome']} (+{p2['bonus']:,})" if p2 else "Slot 2: Vazio")
                         
                     with col_p2:
                         st.write("**Mundo 2 Slots:**")
                         pm1 = dados_player.get("pet_slot_m2_1")
                         pm2 = dados_player.get("pet_slot_m2_2")
-                        st.write(f"🔸 Slot 1: {pm1['nome']} (+{pm1['bonus']:,})" if pm1 else "🔸 Slot 1: Vazio")
-                        st.write(f"🔸 Slot 2: {pm2['nome']} (+{pm2['bonus']:,})" if pm2 else "🔸 Slot 2: Vazio")
+                        st.write(f"Slot 1: {pm1['nome']} (+{pm1['bonus']:,})" if pm1 else "Slot 1: Vazio")
+                        st.write(f"Slot 2: {pm2['nome']} (+{pm2['bonus']:,})" if pm2 else "Slot 2: Vazio")
             else:
                 st.info("Nenhuma conta cadastrada no banco de dados ainda.")
                 
@@ -617,17 +617,17 @@ with st.sidebar:
     st.markdown("---")
 
     # ⭐ PAINEL DE APOIADOR
-    st.header("⭐ Painel de Apoiador")
+    st.header("⚙️ Painel de Apoiador")
     if st.checkbox("Ativar Modo Apoiador"):
         senha_apoio_input = st.text_input("Digite a senha de Apoiador:", type="password", key="senha_apoio_input")
         
         if len(senha_apoio_input) > 0 and senha_apoio_input == SENHA_APOIADOR:
-            st.success("Acesso Autorizado, obrigado pelo apoio!")
+            st.success("Success!")
             
-            st.subheader("Seu Modificador de Pontos")
+            st.subheader("adicionar/remover seus pontos")
             qtd_pontos_apoio = st.number_input("Quantidade de pontos para Si Mesmo:", min_value=1, value=50000, step=1000, key="qtd_pontos_apoio")
             
-            st.subheader("Gerenciar Meu Saldo")
+            st.subheader("Seu saldo:")
             
             col_apoio1, col_apoio2, col_apoio3 = st.columns([2, 1, 1])
             col_apoio1.write(f"**Você ({st.session_state.nome_usuario})**: {st.session_state.pontos} pts")
