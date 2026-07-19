@@ -40,9 +40,9 @@ SESSION_FILE = "sessao_ativa.json"
 
 # CONFIGURAÇÃO DE CONQUISTAS DO JOGO
 CONQUISTAS_CONFIG = {
-    "primeiro_milhao": {"titulo": "🪙 Jovem Rico", "desc": "Alcance 1,000,000 de pontos", "alvo": 1000000, "recompensa": 100000},
-    "magnata": {"titulo": "💎 Magnata dos Cliques", "desc": "Alcance 50,000,000 de pontos", "alvo": 50000000, "recompensa": 5000000},
-    "explorador": {"titulo": "🌌 Explorador Dimensional", "desc": "Desbloqueie e viaje para o Mundo 2", "alvo": 2, "recompensa": 2000000}
+    "primeiro_milhao": {"titulo": "Classe Média", "desc": "Alcance 1,000,000 de pontos", "alvo": 1000000, "recompensa": 100000},
+    "magnata": {"titulo": " Classe Alta", "desc": "Alcance 50,000,000 de pontos", "alvo": 50000000, "recompensa": 5000000},
+    "explorador": {"titulo": "Viajante", "desc": "Desbloqueie e viaje para o Mundo 2", "alvo": 2, "recompensa": 2000000}
 }
 
 # --- FUNÇÕES DE GERENCIAMENTO DE USUÁRIOS E SALVAMENTO ---
@@ -85,21 +85,21 @@ def verificar_e_atualizar_conquistas():
     if "primeiro_milhao" not in conquistas_ganhas and st.session_state.pontos >= CONQUISTAS_CONFIG["primeiro_milhao"]["alvo"]:
         conquistas_ganhas.append("primeiro_milhao")
         st.session_state.pontos += CONQUISTAS_CONFIG["primeiro_milhao"]["recompensa"]
-        st.toast(f"🏆 Conquista Desbloqueada: {CONQUISTAS_CONFIG['primeiro_milhao']['titulo']}! +{CONQUISTAS_CONFIG['primeiro_milhao']['recompensa']:,} Pts")
+        st.toast(f"Conquista Desbloqueada: {CONQUISTAS_CONFIG['primeiro_milhao']['titulo']}! +{CONQUISTAS_CONFIG['primeiro_milhao']['recompensa']:,} Pts")
         ganhou_nova = True
 
     # Conquista 2: 50M Pontos
     if "magnata" not in conquistas_ganhas and st.session_state.pontos >= CONQUISTAS_CONFIG["magnata"]["alvo"]:
         conquistas_ganhas.append("magnata")
         st.session_state.pontos += CONQUISTAS_CONFIG["magnata"]["recompensa"]
-        st.toast(f"🏆 Conquista Desbloqueada: {CONQUISTAS_CONFIG['magnata']['titulo']}! +{CONQUISTAS_CONFIG['magnata']['recompensa']:,} Pts")
+        st.toast(f"Conquista Desbloqueada: {CONQUISTAS_CONFIG['magnata']['titulo']}! +{CONQUISTAS_CONFIG['magnata']['recompensa']:,} Pts")
         ganhou_nova = True
 
     # Conquista 3: Chegar no Mundo 2
     if "explorador" not in conquistas_ganhas and st.session_state.mundo_2_desbloqueado:
         conquistas_ganhas.append("explorador")
         st.session_state.pontos += CONQUISTAS_CONFIG["explorador"]["recompensa"]
-        st.toast(f"🏆 Conquista Desbloqueada: {CONQUISTAS_CONFIG['explorador']['titulo']}! +{CONQUISTAS_CONFIG['explorador']['recompensa']:,} Pts")
+        st.toast(f"Conquista Desbloqueada: {CONQUISTAS_CONFIG['explorador']['titulo']}! +{CONQUISTAS_CONFIG['explorador']['recompensa']:,} Pts")
         ganhou_nova = True
 
     if ganhou_nova:
@@ -969,7 +969,7 @@ if st.session_state.mundo_atual != 2:
         st.write("### Ovo Raro:")
         st.write(f"Dora A.: {ch1_m1_o2:.1f}% (+10 Pontos)")
         st.write(f"Sonic: {ch2_m1_o2:.1f}% (+50 Pontos)")
-        st.write(f"Michael J.: **{ch3_m1_o2:.1f}%** (+100 Pontos) 🍀")
+        st.write(f"Michael J.: **{ch3_m1_o2:.1f}%** (+100 Pontos)")
         
         custo_ovo2 = 1000
         desativar_ovo2 = st.session_state.pontos < custo_ovo2 or loja_em_cooldown
@@ -1078,19 +1078,19 @@ atualizar_no_leaderboard(st.session_state.nome_usuario, st.session_state.pontos)
 
 # --- 🏆 SISTEMA DE CONQUISTAS DE JOGADOR ---
 st.markdown("---")
-st.subheader("🏆 Suas Conquistas")
+st.subheader("Suas Conquistas")
 col_conq1, col_conq2, col_conq3 = st.columns(3)
 
 completadas = st.session_state.get("conquistas", [])
 
 with col_conq1:
-    status_1 = "✅ Desbloqueado" if "primeiro_milhao" in completadas else "🔒 Bloqueado"
+    status_1 = "Desbloqueado" if "primeiro_milhao" in completadas else "🔒 Bloqueado"
     st.metric(label=CONQUISTAS_CONFIG["primeiro_milhao"]["titulo"], value=status_1, help=CONQUISTAS_CONFIG["primeiro_milhao"]["desc"])
 with col_conq2:
-    status_2 = "✅ Desbloqueado" if "magnata" in completadas else "🔒 Bloqueado"
+    status_2 = "Desbloqueado" if "magnata" in completadas else "🔒 Bloqueado"
     st.metric(label=CONQUISTAS_CONFIG["magnata"]["titulo"], value=status_2, help=CONQUISTAS_CONFIG["magnata"]["desc"])
 with col_conq3:
-    status_3 = "✅ Desbloqueado" if "explorador" in completadas else "🔒 Bloqueado"
+    status_3 = "Desbloqueado" if "explorador" in completadas else "🔒 Bloqueado"
     st.metric(label=CONQUISTAS_CONFIG["explorador"]["titulo"], value=status_3, help=CONQUISTAS_CONFIG["explorador"]["desc"])
 
 # --- LOG DE ATUALIZAÇÕES ---
