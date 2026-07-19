@@ -846,7 +846,7 @@ else:
 st.markdown("---")
 
 # Aba Jogo Principal, Evolução de Pets e Renascimento
-abas_principais = st.tabs(["🎮 Jogo Principal", "🧬 Evolução de Pets", "🔮 Templo de Renascimento"])
+abas_principais = st.tabs(["Jogo Principal", "Evolução de Pets", "Renascimento"])
 
 with abas_principais[0]:
     # --- CONTEÚDO DINÂMICO DOS MUNDOS ---
@@ -988,7 +988,7 @@ with abas_principais[0]:
             st.write("### Ovo Raro:")
             st.write(f"Dora A.: {ch1_m1_o2:.1f}% (+10 Pontos)")
             st.write(f"Sonic: {ch2_m1_o2:.1f}% (+50 Pontos)")
-            st.write(f"Michael J.: **{ch3_m1_o2:.1f}%** (+100 Pontos) 🍀")
+            st.write(f"Michael J.: **{ch3_m1_o2:.1f}%** (+100 Pontos)")
             
             custo_ovo2 = 1000
             desativar_ovo2 = st.session_state.pontos < custo_ovo2 or loja_em_cooldown
@@ -1090,7 +1090,7 @@ with abas_principais[0]:
                         st.rerun()
 
 with abas_principais[1]:
-    st.subheader("🧬 Laboratório de Fusão e Evolução")
+    st.subheader("Evolução de pets")
     st.write("Evolua o nível de seus pets equipados atuais para multiplicar exponencialmente o bônus concedido por eles.")
     
     # Dicionário de slots disponíveis
