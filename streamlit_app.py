@@ -387,8 +387,8 @@ def renderizar_area_clique():
         salvar_progresso_atual()
 
     col_m1, col_m2 = st.columns(2)
-    col_m1.metric(label="Pontos Atuais", value=f"{st.session_state.pontos:,}")
-    col_m2.metric(label="🔮 Cristais de Renascimento", value=f"{st.session_state.cristais:,}", help=f"Bônus de produção atual: +{int((obter_multiplicador_cristal()-1)*100)}%")
+    col_m1.metric(label="Pontos Atuais:", value=f"{st.session_state.pontos:,}")
+    col_m2.metric(label="Pontos de Renascimento:", value=f"{st.session_state.cristais:,}", help=f"Bônus de produção atual: +{int((obter_multiplicador_cristal()-1)*100)}%")
     
     if st.session_state.mundo_atual == 2:
         if st.button("            Click Here          ", key="click_m2_btn", use_container_width=True):
@@ -404,7 +404,7 @@ def renderizar_area_clique():
         st.write(f"**Poder de clique:** {st.session_state.poder_clique:,}")
         
     mult_prestige = obter_multiplicador_cristal()
-    st.write(f"**Pontos por segundo:** {int(st.session_state.pontos_por_segundo * mult_prestige):,} (Base: {st.session_state.pontos_por_segundo:,})")
+    st.write(f"**Pontos por segundo:** {int(st.session_state.pontos_por_segundo * mult_prestige):,} {st.session_state.pontos_por_segundo:,}")
 
 if st.session_state.nome_usuario != "" and os.path.exists(LEADERBOARD_FILE):
     try:
