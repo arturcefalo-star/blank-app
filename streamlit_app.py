@@ -70,7 +70,6 @@ def salvar_progresso_atual():
                 "mundo_2_desbloqueado": st.session_state.mundo_2_desbloqueado,
                 "mundo_atual": st.session_state.mundo_atual
             }
-            # Garante que salva o registro de login mesmo ao salvar progresso
             usuarios[username_key]["ultimo_login"] = time.strftime("%Y-%m-%d %H:%M:%S")
             salvar_todos_usuarios(usuarios)
             atualizar_no_leaderboard(st.session_state.nome_usuario, st.session_state.pontos)
@@ -115,7 +114,8 @@ def atualizar_no_leaderboard(nome, pontos):
             j["Jogador"] = nome
             break
             
-    if not encontrar:
+    # CORRIGIDO: Agora usa a variável correta 'encontrado'
+    if not encontrado:
         leaderboard.append({"Jogador": nome, "Pontos": pontos})
     
     leaderboard = sorted(leaderboard, key=lambda x: x["Pontos"], reverse=True)
@@ -174,7 +174,6 @@ def verificar_auto_login():
 # --- INICIALIZAÇÃO DE SESSÃO E CARREGAMENTO ---
 
 def carregar_dados_usuario(username_key):
-    """Carrega os dados de um usuário específico para o session_state."""
     usuarios = carregar_todos_usuarios()
     if username_key in usuarios:
         dados = usuarios[username_key]["dados"]
@@ -192,7 +191,6 @@ def carregar_dados_usuario(username_key):
         st.session_state.nome_usuario = usuarios[username_key]["nome_exibicao"]
         st.session_state.logado = True
         
-        # MODIFICAÇÃO CRUCIAL: Registra a data/hora do login no arquivo JSON
         usuarios[username_key]["ultimo_login"] = time.strftime("%Y-%m-%d %H:%M:%S")
         salvar_todos_usuarios(usuarios)
         return True
@@ -203,7 +201,6 @@ if "logado" not in st.session_state:
 if "nome_usuario" not in st.session_state:
     st.session_state.nome_usuario = ""
 
-# --- CHECAGEM AUTOMÁTICA DE LOGIN ---
 if not st.session_state.logado:
     usuario_salvo = verificar_auto_login()
     if usuario_salvo:
@@ -347,8 +344,6 @@ def renderizar_area_clique():
         
     st.write(f"**Pontos por segundo:** {st.session_state.pontos_por_segundo}")
 
-
-# Sincronização em background segura do placar
 if st.session_state.nome_usuario != "" and os.path.exists(LEADERBOARD_FILE):
     try:
         with open(LEADERBOARD_FILE, "r", encoding="utf-8") as f:
@@ -496,19 +491,14 @@ with st.sidebar:
             st.markdown("---")
             st.subheader("🔍 Inspecionar Jogador")
 
-            # --- CORREÇÃO DA INSPEÇÃO AQUI: PUXA TODOS DO ARQUIVO DE USUÁRIOS DINAMICAMENTE ---
             usuarios_db_inspect = carregar_todos_usuarios()
-            
-            # Mapeamento do nome_exibicao original associado à sua chave em minúsculas
             mapeamento_jogadores = {usuarios_db_inspect[k]["nome_exibicao"]: k for k in usuarios_db_inspect if "nome_exibicao" in usuarios_db_inspect[k]}
             lista_jogadores = list(mapeamento_jogadores.keys())
 
             if lista_jogadores:
-                # Selectbox exibindo todos os nomes cadastrados perfeitamente
                 jogador_selecionado = st.selectbox("Selecione um jogador do banco de dados:", lista_jogadores, key="inspect_select")
                 
                 if st.button("Inspecionar Dados", use_container_width=True):
-                    # Traduz o nome selecionado de volta para a chave correta no banco de dados
                     key_inspect = mapeamento_jogadores[jogador_selecionado]
                     dados_player = usuarios_db_inspect[key_inspect]["dados"]
                     visto_ultimo = usuarios_db_inspect[key_inspect].get("ultimo_login", "Não registrado")
@@ -673,7 +663,6 @@ if st.session_state.mundo_atual == 2:
     except Exception:
         pass
 
-    # CHAMADA DO FRAGMENTO ISOLADO DO MUNDO 2 (SEM PISCAR TELA)
     renderizar_area_clique()
 
     st.markdown("---")
@@ -763,7 +752,6 @@ if st.session_state.mundo_atual != 2:
     except Exception:
         st.caption("🎵 Arquivo 'musica67.mp3' não encontrado.")
 
-    # CHAMADA DO FRAGMENTO ISOLADO DO MUNDO 1 (SEM PISCAR TELA)
     renderizar_area_clique()
 
     st.markdown("---")
