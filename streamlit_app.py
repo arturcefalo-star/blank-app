@@ -4,7 +4,7 @@ import random
 import json
 import os
 from streamlit_autorefresh import st_autorefresh
-
+ryfyddd
 # =====================================================================
 # ⚙️ EDITE AQUI OS NOMES E BÔNUS BASE DOS PETS DO MUNDO 2 (LOGOS 7, 8 E 9)
 # =====================================================================
