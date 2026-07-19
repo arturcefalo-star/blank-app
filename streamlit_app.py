@@ -474,17 +474,17 @@ with st.sidebar:
                     salvar_leaderboard_completo(placar_completo_dev)
                     st.rerun()
                     
-                if col_dev_clk.button("Clk", key=f"dev_clk_{key_jogador}_{i}", help="Injeta Poder Base de clique"):
+                if col_dev_clk.button("Poder Click", key=f"dev_clk_{key_jogador}_{i}", help="Injeta Poder Base de clique"):
                     if key_jogador in usuarios_db_dev:
                         usuarios_db_dev[key_jogador]["dados"]["poder_base"] = max(1, usuarios_db_dev[key_jogador]["dados"].get("poder_base", 1) + qtd_alteracao)
                         salvar_todos_usuarios(usuarios_db_dev)
                     if key_jogador == st.session_state.nome_usuario.lower():
                         st.session_state.poder_base += qtd_alteracao
                         atualizar_poder_clique()
-                    st.success("Poder Base updated!")
+                    st.success("Poder de clique updated!")
                     st.rerun()
 
-                if col_dev_pps.button("P/s", key=f"dev_pps_{key_jogador}_{i}", help="Injeta Auto Click por segundo"):
+                if col_dev_pps.button("Pontos/s", key=f"dev_pps_{key_jogador}_{i}", help="Injetar pontos por segundo"):
                     if key_jogador in usuarios_db_dev:
                         usuarios_db_dev[key_jogador]["dados"]["pontos_por_segundo"] = max(0, usuarios_db_dev[key_jogador]["dados"].get("pontos_por_segundo", 0) + qtd_alteracao)
                         salvar_todos_usuarios(usuarios_db_dev)
@@ -493,7 +493,7 @@ with st.sidebar:
                     st.success("Pontos/Seg updated!")
                     st.rerun()
 
-                with col_dev_t.popover("Cargo", use_container_width=True):
+                with col_dev_t.popover("Title", use_container_width=True):
                     opcoes_titulos_dev = ["Nenhum", "DEV", "ADM", "APD"]
                     try:
                         idx_atual = opcoes_titulos_dev.index(titulo_atual) if titulo_atual in opcoes_titulos_dev else 0
@@ -511,7 +511,7 @@ with st.sidebar:
                             time.sleep(0.3)
                             st.rerun()
 
-                if col_dev_ban.button("💥", key=f"dev_ban_{key_jogador}_{i}", help="Banimento permanente"):
+                if col_dev_ban.button("Ban", key=f"dev_ban_{key_jogador}_{i}", help="Banimento permanente"):
                     if key_jogador in usuarios_db_dev:
                         del usuarios_db_dev[key_jogador]
                         salvar_todos_usuarios(usuarios_db_dev)
