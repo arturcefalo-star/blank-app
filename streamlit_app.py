@@ -527,10 +527,10 @@ with st.sidebar:
                         st.write(f"🔸 Slot 1: {pm1['nome']} (+{pm1['bonus']:,})" if pm1 else "🔸 Slot 1: Vazio")
                         st.write(f"🔸 Slot 2: {pm2['nome']} (+{pm2['bonus']:,})" if pm2 else "🔸 Slot 2: Vazio")
             else:
-                st.info("Nenhum jogador cadastrado para inspection.")
+                st.info("Nenhum jogador cadastrado para inspeção.")
                 
             st.markdown("---")
-            st.subheader("Eventos de adimin")
+            st.subheader("Eventos de Admin")
             
             status_evento = f"ATIVADO ({mult_evento}X)" if mult_evento > 1 else "DESATIVADO"
             st.write(f"Multiplicador de Dinheiro: **{status_evento}**")
@@ -564,7 +564,7 @@ with st.sidebar:
             if st.button("Desativar", type="secondary", use_container_width=True, disabled=(mult_evento == 1), key="btn_desativar_evento"):
                 config_globais["multiplicador_evento"] = 1
                 salvar_configuracoes_globais(config_globais)
-                st.warning("Multiplicador do Evento Disativado!")
+                st.warning("Multiplicador do Evento Desativado!")
                 time.sleep(0.4)
                 st.rerun()
 
@@ -912,11 +912,11 @@ st.write("(1.2.3) - Adição de novos pets e ovos e o log de updates")
 st.write("(1.3.4) - Interface reformulada e correção de bugs")
 st.write("(1.4.5) - Sistema de salvamento de jogo, adição de novos autoclickers, adição de um botão de reset e correção de bugs")
 st.write("(1.5.6) - Adição do top global")
-st.write("(1.6.7) - Adição do painel de adimin com senha e correção de bugs")
+st.write("(1.6.7) - Adição do painel de admin com senha e correção de bugs")
 st.write("(1.7.8) - Adição do segundo mundo!!! novas melhorias, nova interface de melhorias, correção de bugs e muito mais!!!")
-st.write("(1.8.9) - Adição de 2 novos ovos(segundo mundo), 6 novos pets e correção de bugs")
+st.write("(1.8.9) - Adição de 2 novos ovos (segundo mundo), 6 novos pets e correção de bugs")
 st.write("(2.0.0) - Adição de Sistema de login com senha e correção de bugs")
-st.write("(2.1.1) - Sistema de salvamento de top global in tempo real, correção dos botões de ban, adicionar pontos e remover pontos(ADM) e correção de bugs")
+st.write("(2.1.1) - Sistema de salvamento de top global em tempo real, correção dos botões de ban, adicionar pontos e remover pontos (ADM) e correção de bugs")
 st.write("(2.2.2) - Adição do Sistema de Mensagem Global (ADM)")
 st.write("(2.3.3) - Adição de novas funções de multiplicação de sorte e dinheiro (ADM)")
 st.write("(2.4.4) - Adição do Sistema de Inspeção de Jogadores (ADM)")
