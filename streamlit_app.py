@@ -8,7 +8,7 @@ from streamlit_autorefresh import st_autorefresh
 # =====================================================================
 # ⚙️ EDITE AQUI OS NOMES E BÔNUS BASE DOS PETS DO MUNDO 2 (LOGOS 7, 8 E 9)
 # =====================================================================
-NOME_PET_7 = "Barbbie"  # Logo 7
+NOME_PET_7 = "Barbie"  # Logo 7
 BONUS_PET_7 = 1000000
 
 NOME_PET_8 = "Homem A."     # Logo 8
