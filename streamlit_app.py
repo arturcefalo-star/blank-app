@@ -60,7 +60,6 @@ def tem_titulo(titulo_necessario):
     usuarios = carregar_todos_usuarios()
     user_key = st.session_state.nome_usuario.lower()
     if user_key in usuarios:
-        # Puxa o título salvo direto no arquivo JSON para atualizar na hora para outros players
         return usuarios[user_key]["dados"].get("titulo") == titulo_necessario
     return False
 
@@ -81,7 +80,7 @@ def salvar_progresso_atual():
                 "ultimo_tick": st.session_state.ultimo_tick,
                 "mundo_2_desbloqueado": st.session_state.mundo_2_desbloqueado,
                 "mundo_atual": st.session_state.mundo_atual,
-                "titulo": usuarios[username_key]["dados"].get("titulo", "") # Mantém o título do banco intacto ao salvar
+                "titulo": usuarios[username_key]["dados"].get("titulo", "") 
             }
             usuarios[username_key]["ultimo_login"] = time.strftime("%Y-%m-%d %H:%M:%S")
             salvar_todos_usuarios(usuarios)
@@ -294,7 +293,6 @@ if "pontos_leaderboard_cache" not in st.session_state:
 if "ultimo_tick" not in st.session_state:
     st.session_state.ultimo_tick = time.time()
 
-# Atualiza a variável de título interna baseado no arquivo físico
 usuarios_temp = carregar_todos_usuarios()
 user_key_temp = st.session_state.nome_usuario.lower()
 if user_key_temp in usuarios_temp:
@@ -333,7 +331,6 @@ def calcular_chances_ovo(c1, c2, c3_base):
 
 atualizar_poder_clique()
 
-# --- SISTEMA ANTI-LAG DEFINITIVO COM FRAGMENTO OTIMIZADO ---
 @st.fragment
 def renderizar_area_clique():
     st_autorefresh(interval=3000, key="game_click_loop")
@@ -473,7 +470,8 @@ with st.sidebar:
                 
                 if col_adm3.button("Add", key=f"add_{key_jogador}_{i}"):
                     if key_jogador in usuarios_db:
-                        usuarios_db[key_jogador]["dados"]["pontos"] = max(0, usuarios_db[key_jogador]["dados'].get("pontos", 0) + qtd_pontos)
+                        # CORRIGIDO: Modificado de ["dados'] para ["dados"] resolvendo o bug de aspas mistas.
+                        usuarios_db[key_jogador]["dados"]["pontos"] = max(0, usuarios_db[key_jogador]["dados"].get("pontos", 0) + qtd_pontos)
                         salvar_todos_usuarios(usuarios_db)
                         
                     if key_jogador == st.session_state.nome_usuario.lower():
