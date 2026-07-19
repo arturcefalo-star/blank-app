@@ -676,7 +676,6 @@ if st.session_state.mundo_atual == 2:
         desativar_m2_ovo1 = st.session_state.pontos < CUSTO_OVO_MUNDO_2_BARATO or loja_em_cooldown
         
         if st.button(f"Abrir Ovo = {CUSTO_OVO_MUNDO_2_BARATO:,} Pontos", disabled=desativar_m2_ovo1, key="botao_m2_ovo1"):
-            st.session_state.ultima_compra = time.time()  
             if st.session_state.pontos >= CUSTO_OVO_MUNDO_2_BARATO:
                 st.session_state.pontos -= CUSTO_OVO_MUNDO_2_BARATO
                 sorteado = random.choices(
@@ -687,6 +686,7 @@ if st.session_state.mundo_atual == 2:
                 )[0]
                 st.session_state.pet_slot_m2_1 = sorteado
                 atualizar_poder_clique()
+                st.session_state.ultima_compra = 0.0  # Destrava os botões limpando o cooldown após a compra
                 salvar_progresso_atual()
                 time.sleep(0.5) 
                 st.rerun()
@@ -711,7 +711,6 @@ if st.session_state.mundo_atual == 2:
         desativar_m2_ovo2 = st.session_state.pontos < CUSTO_OVO_MUNDO_2_CARO or loja_em_cooldown
         
         if st.button(f"Abrir Ovo = {CUSTO_OVO_MUNDO_2_CARO:,} Pontos", disabled=desativar_m2_ovo2, key="botao_m2_ovo2"):
-            st.session_state.ultima_compra = time.time()
             if st.session_state.pontos >= CUSTO_OVO_MUNDO_2_CARO:
                 st.session_state.pontos -= CUSTO_OVO_MUNDO_2_CARO
                 sorteado = random.choices(
@@ -722,6 +721,7 @@ if st.session_state.mundo_atual == 2:
                 )[0]
                 st.session_state.pet_slot_m2_2 = sorteado
                 atualizar_poder_clique()
+                st.session_state.ultima_compra = 0.0  # Destrava os botões limpando o cooldown após a compra
                 salvar_progresso_atual()
                 time.sleep(0.5) 
                 st.rerun()
