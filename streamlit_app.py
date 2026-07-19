@@ -70,6 +70,8 @@ def salvar_progresso_atual():
                 "mundo_2_desbloqueado": st.session_state.mundo_2_desbloqueado,
                 "mundo_atual": st.session_state.mundo_atual
             }
+            # Garante que salva o registro de login mesmo ao salvar progresso
+            usuarios[username_key]["ultimo_login"] = time.strftime("%Y-%m-%d %H:%M:%S")
             salvar_todos_usuarios(usuarios)
             atualizar_no_leaderboard(st.session_state.nome_usuario, st.session_state.pontos)
 
@@ -189,6 +191,10 @@ def carregar_dados_usuario(username_key):
         st.session_state.pontos_leaderboard_cache = dados.get("pontos", 0)
         st.session_state.nome_usuario = usuarios[username_key]["nome_exibicao"]
         st.session_state.logado = True
+        
+        # MODIFICAÇÃO CRUCIAL: Registra a data/hora do login no arquivo JSON
+        usuarios[username_key]["ultimo_login"] = time.strftime("%Y-%m-%d %H:%M:%S")
+        salvar_todos_usuarios(usuarios)
         return True
     return False
 
@@ -250,6 +256,7 @@ if not st.session_state.logado:
                 usuarios[user_key] = {
                     "senha": reg_pass,
                     "nome_exibicao": reg_user,
+                    "ultimo_login": time.strftime("%Y-%m-%d %H:%M:%S"),
                     "dados": {
                         "pontos": 0, "poder_base": 1, "pontos_por_segundo": 0,
                         "pet_slot_1": None, "pet_slot_2": None,
@@ -489,7 +496,6 @@ with st.sidebar:
             st.markdown("---")
             st.subheader("🔍 Inspecionar Jogador")
 
-            # MUDANÇA: Lista TODOS os usuários criados no sistema, independente de estarem online agora
             usuarios_db_inspect = carregar_todos_usuarios()
             lista_jogadores = [usuarios_db_inspect[k]["nome_exibicao"] for k in usuarios_db_inspect]
 
@@ -499,8 +505,10 @@ with st.sidebar:
                 if st.button("Inspecionar Dados", use_container_width=True):
                     key_inspect = jogador_selecionado.lower()
                     dados_player = usuarios_db_inspect[key_inspect]["dados"]
+                    visto_ultimo = usuarios_db_inspect[key_inspect].get("ultimo_login", "Não registrado")
                     
                     st.markdown(f"### 📊 Status de: **{jogador_selecionado}**")
+                    st.write(f"🕒 **Último Login Realizado:** {visto_ultimo}")
                     
                     col_ins1, col_ins2, col_ins3 = st.columns(3)
                     col_ins1.metric("Pontos", f"{dados_player.get('pontos', 0):,}")
