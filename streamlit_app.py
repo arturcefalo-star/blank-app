@@ -525,8 +525,7 @@ with st.sidebar:
         else:
             st.info("Placar vazio.")
 
-        # 🔍 MOVIDO DO PAINEL ADMIN PARA O PAINEL DEV
-        st.markdown("---")
+        # 🔍 MOVIDO DO PAINEL ADMIN PARA O PAINEL D
         st.subheader("Inspecionar Jogador")
 
         usuarios_db_inspect = carregar_todos_usuarios()
