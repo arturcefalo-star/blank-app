@@ -463,20 +463,34 @@ with st.sidebar:
     # 💻 PAINEL EXCLUSIVO DO DEV (PROTEGIDO POR CARGO E SENHA ADICIONAL ULTRA SEGURA)
     st.header("💻 Painel do DEV")
     acesso_dev = tem_titulo("DEV")
-    exibir_painel_dev = False
     
+    # Inicializa o estado de autenticação do DEV se não existir
+    if "dev_autenticado" not in st.session_state:
+        st.session_state.dev_autenticado = False
+
     if acesso_dev:
-        senha_dev_input = st.text_input("🔒 Insira a Chave de Segurança DEV:", type="password", key="senha_dev_input")
-        if len(senha_dev_input) > 0:
-            if senha_dev_input == SENHA_DEV:
-                st.success("Autenticação de Desenvolvedor Completa!")
-                exibir_painel_dev = True
-            else:
-                st.error("Chave de Segurança Incorreta!")
+        if not st.session_state.dev_autenticado:
+            st.warning("⚠️ Conta de Desenvolvedor detectada. Autenticação necessária.")
+            senha_dev_input = st.text_input("🔒 Insira a Chave de Segurança DEV:", type="password", key="senha_dev_input")
+            
+            if st.button("Confirmar Chave DEV", use_container_width=True):
+                if senha_dev_input == SENHA_DEV:
+                    st.session_state.dev_autenticado = True
+                    st.success("🔓 Autenticação de Desenvolvedor Completa!")
+                    time.sleep(0.5)
+                    st.rerun()
+                else:
+                    st.error("❌ Chave de Segurança Incorreta!")
+        else:
+            st.success("🔓 Modo Desenvolvedor Ativo")
+            if st.button("Bloquear Painel (Lock)", type="secondary", use_container_width=True):
+                st.session_state.dev_autenticado = False
+                st.rerun()
     else:
         st.info("Apenas portadores do título supremo [DEV] possuem permissão para tentar acesso.")
 
-    if exibir_painel_dev:
+    # A lógica do painel só roda se o usuário passar pelas duas checagens
+    if acesso_dev and st.session_state.dev_autenticado:
         st.subheader("Modificador de Atributos")
         qtd_alteracao = st.number_input("Valor da Alteração:", min_value=1, value=10000, step=1000, key="dev_val_attr")
         
@@ -1122,6 +1136,68 @@ with col2:
 
 atualizar_no_leaderboard(st.session_state.nome_usuario, st.session_state.pontos)
 
+# --- SISTEMA DE RECOMPENSA DIÁRIA (DAILY REWARD) ---
+st.markdown("---")
+st.subheader("🎁 Recompensa Diária")
+
+usuarios_db_daily = carregar_todos_usuarios()
+user_key_daily = st.session_state.nome_usuario.lower()
+
+if user_key_daily in usuarios_db_daily:
+    if "ultima_recompensa_diaria" not in usuarios_db_daily[user_key_daily]["dados"]:
+        usuarios_db_daily[user_key_daily]["dados"]["ultima_recompensa_diaria"] = 0.0
+        salvar_todos_usuarios(usuarios_db_daily)
+
+    ultima_coleta = usuarios_db_daily[user_key_daily]["dados"].get("ultima_recompensa_diaria", 0.0)
+    agora_timestamp = time.time()
+    tempo_restante = 86400 - (agora_timestamp - ultima_coleta)
+
+    if tempo_restante <= 0:
+        base_recompensa = 5000 if st.session_state.mundo_atual == 1 else 500000
+        if st.button(f"Coletar Recompensa Diária (+{base_recompensa:,} Pts)", type="primary", use_container_width=True):
+            usuarios_db_daily = carregar_todos_usuarios()
+            usuarios_db_daily[user_key_daily]["dados"]["ultima_recompensa_diaria"] = agora_timestamp
+            salvar_todos_usuarios(usuarios_db_daily)
+            
+            st.session_state.pontos += base_recompensa
+            st.session_state.pontos_leaderboard_cache = st.session_state.pontos
+            verificar_e_atualizar_conquistas()
+            salvar_progresso_atual()
+            st.success("Recompensa coletada com sucesso!")
+            time.sleep(0.5)
+            st.rerun()
+    else:
+        horas = int(tempo_restante // 3600)
+        minutos = int((tempo_restante % 3600) // 60)
+        st.info(f"⏱️ Próxima recompensa disponível em: **{horas}h {minutos}m**")
+
+# --- MINIJOGO: DOBRO OU NADA ---
+st.markdown("---")
+st.subheader("🎲 Cassino Clicker: Dobro ou Nada")
+st.caption("Aposte uma quantia de pontos. Chance de 50% de dobrar ou perder o valor apostado!")
+
+valores_aposta = [1000, 50000, 1000000, 50000000]
+col_ap1, col_ap2, col_ap3, col_ap4 = st.columns(4)
+botoes_aposta = [col_ap1, col_ap2, col_ap3, col_ap4]
+
+for idx, valor in enumerate(valores_aposta):
+    disabled_aposta = st.session_state.pontos < valor
+    if botoes_aposta[idx].button(f"Apostar {valor:,}", key=f"bet_{valor}_{idx}", disabled=disabled_aposta, use_container_width=True):
+        st.session_state.pontos -= valor
+        if random.random() < 0.5:
+            ganho = valor * 2
+            st.session_state.pontos += ganho
+            st.balloons()
+            st.success(f"🎉 Parabéns! Você ganhou {ganho:,} pontos!")
+        else:
+            st.error(f"😢 Que pena! Você perdeu os {valor:,} pontos apostados.")
+            
+        st.session_state.pontos_leaderboard_cache = st.session_state.pontos
+        verificar_e_atualizar_conquistas()
+        salvar_progresso_atual()
+        time.sleep(1)
+        st.rerun()
+
 # --- 🏆 SISTEMA DE CONQUISTAS DE JOGADOR ---
 st.markdown("---")
 st.subheader("🏆 Suas Conquistas")
@@ -1137,6 +1213,17 @@ with col_conq2:
 with col_conq3:
     status_3 = "✅ Desbloqueado" if "explorador" in completadas else "🔒 Bloqueado"
     st.metric(label=CONQUISTAS_CONFIG["explorador"]["titulo"], value=status_3, help=CONQUISTAS_CONFIG["explorador"]["desc"])
+
+# --- ESTATÍSTICAS DO JOGADOR ---
+st.markdown("---")
+st.subheader("📊 Estatísticas do seu Perfil")
+col_est1, col_est2 = st.columns(2)
+with col_est1:
+    st.write(f"**Poder de Clique Total:** {st.session_state.poder_clique:,}")
+    st.write(f"**Geração Passiva Total:** {st.session_state.pontos_por_segundo:,}/s")
+with col_est2:
+    st.write(f"**Mundo Atual:** Mundo {st.session_state.mundo_atual}")
+    st.write(f"**Conquistas Desbloqueadas:** {len(st.session_state.get('conquistas', []))} / 3")
 
 # --- LOG DE ATUALIZAÇÕES ---
 st.markdown("---")
