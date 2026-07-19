@@ -445,11 +445,12 @@ with st.sidebar:
     # 👑 PAINEL DE ADMIN
     st.header("⚙️ Painel de Admin")
     
-    acesso_admin = tem_titulo("ADM")
+    # DEV também possui acesso automático ao painel de Admin
+    acesso_admin = tem_titulo("ADM") or tem_titulo("DEV")
     exibir_painel_admin = False
     
     if acesso_admin:
-        st.success("Acesso automático concedido via título [ADM]!")
+        st.success(f"Acesso automático concedido via título [{st.session_state.titulo}]!")
         exibir_painel_admin = True
     else:
         if st.checkbox("Ativar Modo Administrador"):
@@ -554,11 +555,18 @@ with st.sidebar:
                     st.rerun()
 
                 with col_adm5.popover("Title", use_container_width=True):
+                    # Adicionado a opção "DEV" no seletor de Títulos rápidos
+                    opcoes_titulos_lista = ["Nenhum", "ADM", "APD", "DEV"]
+                    try:
+                        idx_atual = opcoes_titulos_lista.index(titulo_atual) if titulo_atual in opcoes_titulos_lista else 0
+                    except ValueError:
+                        idx_atual = 0
+
                     opcao_titulo = st.selectbox(
                         "Escolha:", 
-                        ["Nenhum", "ADM", "APD"], 
+                        opcoes_titulos_lista, 
                         key=f"sel_title_{key_jogador}_{i}",
-                        index=0 if titulo_atual == "" else (1 if titulo_atual == "ADM" else 2)
+                        index=idx_atual
                     )
                     if st.button("Aplicar", key=f"btn_title_{key_jogador}_{i}", use_container_width=True):
                         if key_jogador in usuarios_db:
@@ -718,11 +726,12 @@ with st.sidebar:
     # ⭐ PAINEL DE APOIADOR
     st.header("⚙️ Painel de Apoiador")
     
-    acesso_apoiador = tem_titulo("APD") or tem_titulo("ADM")
+    # DEV também ganha acesso automático irrestrito ao painel de Apoiador
+    acesso_apoiador = tem_titulo("APD") or tem_titulo("ADM") or tem_titulo("DEV")
     exibir_painel_apoiador = False
     
     if acesso_apoiador:
-        st.success("Acesso automático concedido via título autorizado!")
+        st.success(f"Acesso automático concedido via título [{st.session_state.titulo}]!")
         exibir_painel_apoiador = True
     else:
         if st.checkbox("Ativar Modo Apoiador"):
@@ -1106,6 +1115,7 @@ st.write("(2.5.5) - Remoção do login manual e correção de bugs")
 st.write("(2.6.7) - Adição do Painel de Apoiador (APD) e correção de bugs")
 st.write("(2.7.8) - Adição de títulos [ADM] e [APD] (Painel de ADM)")
 st.write("(2.8.0) - Adição do Sistema de Conquistas Globais com Recompensas")
+st.write("(2.9.1) - Adição do título supremo [DEV] com acesso irrestrito aos dois painéis")
 
 # --- 🏆 TABELA DE CLASSIFICAÇÃO GLOBAL ---
 st.markdown("---")
@@ -1113,7 +1123,6 @@ st.subheader("Top Global:")
 dados_placar = get_leaderboard_data()
 
 if dados_placar:
-    # Formata os pontos do placar com separadores de milhar antes de exibir na tabela
     dados_formatados = [{"Jogador": j["Jogador"], "Pontos": f"{j['Pontos']:,}"} for j in dados_placar]
     st.table(dados_formatados)
 else:
