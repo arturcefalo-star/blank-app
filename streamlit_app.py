@@ -31,13 +31,12 @@ BONUS_PET_M2_R3 = 50000000
 CUSTO_OVO_MUNDO_2_CARO = 500000000   # Custo do segundo ovo do Mundo 2
 # =====================================================================
 
-SENHA_DEV = "67DEV67"  
+SENHA_DEV = "<<==67==>>"  
 SENHA_ADMIN = "XXxx67xxXX"
 SENHA_APOIADOR = "67AP0IO67"  
 ACCOUNTS_FILE = "usuarios.json"
 LEADERBOARD_FILE = "leaderboard.json"
 AVISOS_FILE = "avisos.json"
-SAVED_SESSIONS_FILE = "contas_salvas.json" # Arquivo para lembrar logins locais
 
 # --- FUNÇÕES DE GERENCIAMENTO DE USUÁRIOS E SALVAMENTO ---
 
@@ -54,20 +53,21 @@ def salvar_todos_usuarios(usuarios):
     with open(ACCOUNTS_FILE, "w", encoding="utf-8") as f:
         json.dump(usuarios, f, ensure_ascii=False, indent=4)
 
-def carregar_contas_salvas():
-    if os.path.exists(SAVED_SESSIONS_FILE):
+def carregar_contas_salvas_locais():
+    # Recupera as contas salvas direto do LocalStorage do navegador atual
+    dados_locais = st.browser_storage.get("clicker_contas_salvas")
+    if dados_locais:
         try:
-            with open(SAVED_SESSIONS_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
+            return json.loads(dados_locais)
         except Exception:
             return {}
     return {}
 
 def salvar_conta_localmente(usuario, senha):
-    contas = carregar_contas_salvas()
+    # Salva no LocalStorage do navegador do usuário atual
+    contas = carregar_contas_salvas_locais()
     contas[usuario.lower()] = {"usuario": usuario, "senha": senha}
-    with open(SAVED_SESSIONS_FILE, "w", encoding="utf-8") as f:
-        json.dump(contas, f, ensure_ascii=False, indent=4)
+    st.browser_storage.set("clicker_contas_salvas", json.dumps(contas))
 
 def tem_titulo(titulo_necessario):
     if not st.session_state.get("logado") or not st.session_state.get("nome_usuario"):
@@ -199,12 +199,12 @@ if "nome_usuario" not in st.session_state:
     st.session_state.nome_usuario = ""
 
 # =====================================================================
-# 🔐 TELA DE LOGIN / REGISTRO COM SESSÕES SALVAS
+# 🔐 TELA DE LOGIN / REGISTRO COM SESSÕES PRIVADAS E LOCAIS
 # =====================================================================
 if not st.session_state.logado:
     st.title("Clicker Game - Login")
     
-    aba_login, aba_salvas, aba_registro = st.tabs(["Entrar", "Contas Salvas", "Criar Nova Conta"])
+    aba_login, aba_salvas, aba_registro = st.tabs(["Entrar na Conta", "Contas Já Criadas 💾", "Criar Nova Conta"])
     
     with aba_login:
         st.subheader("Faça seu Login")
@@ -233,7 +233,7 @@ if not st.session_state.logado:
                 st.session_state.nome_usuario = usuarios[user_key]["nome_exibicao"]
                 st.session_state.logado = True
                 
-                # Salva o login localmente para a aba "Contas Já Criadas"
+                # Salva a sessão APENAS no navegador local de quem fez o login
                 salvar_conta_localmente(usuarios[user_key]["nome_exibicao"], log_pass)
                 
                 usuarios[user_key]["ultimo_login"] = time.strftime("%Y-%m-%d %H:%M:%S")
@@ -246,12 +246,12 @@ if not st.session_state.logado:
                 st.error("Usuário ou senha incorretos.")
 
     with aba_salvas:
-        st.subheader("Entrar com Conta Salva")
-        contas_locais = carregar_contas_salvas()
+        st.subheader("Entrar com Conta já Criada neste Navegador")
+        contas_locais = carregar_contas_salvas_locais()
         
         if contas_locais:
             opcoes_contas = [dados["usuario"] for dados in contas_locais.values()]
-            conta_selecionada = st.selectbox("Escolha uma conta salva:", opcoes_contas)
+            conta_selecionada = st.selectbox("Escolha uma de suas contas salvas:", opcoes_contas)
             
             if st.button("Entrar Direto", type="primary", use_container_width=True):
                 key_selecionada = conta_selecionada.lower()
@@ -285,7 +285,7 @@ if not st.session_state.logado:
                 else:
                     st.error("A senha mudou ou o usuário não existe mais no banco global.")
         else:
-            st.info("Nenhuma conta salva neste dispositivo ainda. Faça login normalmente uma vez.")
+            st.info("Nenhuma conta salva detectada neste dispositivo. Faça login manualmente uma vez para salvá-la aqui.")
                 
     with aba_registro:
         st.subheader("Crie sua Conta")
@@ -438,14 +438,13 @@ with st.sidebar:
     st.markdown("---")
 
     # 💻 PAINEL DE DEV
-    raridade = "-67-$3CR3T-67-" 
     st.header("⚙️ Painel de Desenvolvedor")
     exibir_painel_dev = False
     
     if st.checkbox("Ativar Modo Desenvolver"):
         senha_dev_input = st.text_input("Digite a senha de Desenvolvedor:", type="password", key="senha_dev_input")
         if len(senha_dev_input) > 0:
-            if senha_dev_input == raridade:
+            if senha_dev_input == SENHA_DEV:
                 st.success("Success!")
                 exibir_painel_dev = True
             else:
@@ -1090,25 +1089,9 @@ if st.session_state.nome_usuario:
 # --- LOG DE ATUALIZAÇÕES ---
 st.markdown("---")
 st.subheader("Atualizações:")
-st.write("(1.0.0)(Beta) - Lançamento!!!")
-st.write("(1.0.1) - Correção de bugs")
-st.write("(1.1.2) - Adição dos Ovos, correção de bugs e preços balanceados")
-st.write("(1.2.3) - Adição de novos pets e ovos e o log de updates")
-st.write("(1.3.4) - Interface reformulada e correção de bugs")
-st.write("(1.4.5) - Sistema de salvamento de jogo, adição de novos autoclickers, adição de um botão de reset e correção de bugs")
-st.write("(1.5.6) - Adição do top global")
-st.write("(1.6.7) - Adição do painel de admin com senha e correção de bugs")
-st.write("(1.7.8) - Adição do segundo mundo!!! novas melhorias, nova interface de melhorias, correção de bugs e muito mais!!!")
-st.write("(1.8.9) - Adição de 2 novos ovos (segundo mundo), 6 novos pets e correção de bugs")
-st.write("(2.0.0) - Adição de Sistema de login com senha e correção de bugs")
-st.write("(2.1.1) - Sistema de salvamento de top global em tempo real, correção dos botões de ban, adicionar pontos e remover pontos (ADM) e correção de bugs")
-st.write("(2.2.2) - Adição do Sistema de Mensagem Global (ADM)")
-st.write("(2.3.3) - Adição de novas funções de multiplicação de sorte e dinheiro (ADM)")
-st.write("(2.4.4) - Adição do Sistema de Inspeção de Jogadores (ADM)")
-st.write("(2.5.5) - Integração do Sistema de Login Automático de Sessão")
-st.write("(2.6.7) - Adição do painel de desenvolvedor (DEV)")
-st.write("(2.7.8) - Adição do renascimento e novo sistema de melhoria de pets")
-st.write("(2.8.7) - Substituimento do login direto para uma opção de entrar em contas salvas")
+st.write("(3.0.0) - Criação do Painel do DEV exclusivo e limitação do painel ADM")
+st.write("(3.0.2) - Correção da oscilação/piscar da tela gerada pelo loop anti-lag utilizando fragmentação invisível.")
+st.write("(3.1.5) - Correção de Privacidade: Contas salvas vinculadas de forma estrita ao dispositivo local.")
 
 # --- 🏆 TABELA DE CLASSIFICAÇÃO GLOBAL ---
 st.markdown("---")
