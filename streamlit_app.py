@@ -31,7 +31,7 @@ BONUS_PET_M2_R3 = 50000000
 CUSTO_OVO_MUNDO_2_CARO = 500000000   # Custo do segundo ovo do Mundo 2
 # =====================================================================
 
-SENHA_DEV = "<<==67==>>"  # 🔐 SENHA DO DEV (O formato da Admin, mas aprimorada)
+SENHA_DEV = "<<==67==>>"  
 SENHA_ADMIN = "XXxx67xxXX"
 SENHA_APOIADOR = "67AP0IO67"  
 ACCOUNTS_FILE = "usuarios.json"
@@ -313,13 +313,12 @@ def calcular_chances_ovo(c1, c2, c3_base):
 
 atualizar_poder_clique()
 
+# 🛡️ LINHA ANTI-LAG ESTABILIZADA (ISOLADA SEM INTERFERIR NA TELA)
 @st.fragment
-def renderizar_area_clique():
-    st_autorefresh(interval=3000, key="game_click_loop")
-    
+def anti_lag_ticker():
+    st_autorefresh(interval=3000, key="anti_lag_silent_loop", toggle_nightlight=False)
     agora = time.time()
     tempo_passado = agora - st.session_state.ultimo_tick
-
     if tempo_passado >= 1.0:
         ciclos = int(tempo_passado)
         st.session_state.pontos += st.session_state.pontos_por_segundo * ciclos
@@ -327,6 +326,9 @@ def renderizar_area_clique():
         st.session_state.pontos_leaderboard_cache = st.session_state.pontos
         salvar_progresso_atual()
 
+anti_lag_ticker()
+
+def renderizar_area_clique():
     st.metric(label="Pontos Atuais", value=f"{st.session_state.pontos:,}")
     
     if st.session_state.mundo_atual == 2:
@@ -371,7 +373,7 @@ with st.sidebar:
         
     st.markdown("---")
 
-    # 💻 PAINEL DE DE DEVE (FORMATADO IGUAL AO DE ADMIN, COM SENHA MELHORADA)
+    # 💻 PAINEL DE DEV
     st.header("⚙️ Painel de Desenvolvedor")
     exibir_painel_dev = False
     
@@ -476,9 +478,7 @@ with st.sidebar:
         else:
             st.info("Placar vazio.")
 
-        # 🔍 MOVIDO DO PAINEL ADMIN PARA O PAINEL D
         st.subheader("Inspecionar Jogador")
-
         usuarios_db_inspect = carregar_todos_usuarios()
         mapeamento_jogadores = {usuarios_db_inspect[k]["nome_exibicao"]: k for k in usuarios_db_inspect if "nome_exibicao" in usuarios_db_inspect[k]}
         lista_jogadores = list(mapeamento_jogadores.keys())
@@ -521,7 +521,7 @@ with st.sidebar:
         
     st.markdown("---")
     
-    # ⚙️ PAINEL DE ADMIN (SEM BANIR OU EDITAR TÍTULO)
+    # ⚙️ PAINEL DE ADMIN
     st.header("⚙️ Painel de Admin")
     acesso_admin = tem_titulo("ADM") or tem_titulo("DEV")
     exibir_painel_admin = False
@@ -1026,7 +1026,7 @@ if st.session_state.nome_usuario:
 st.markdown("---")
 st.subheader("Atualizações:")
 st.write("(3.0.0) - Criação do Painel do DEV exclusivo e limitação do painel ADM")
-st.write("(3.0.1) - Padronização do Painel de de deve com sistema de ativação por senha idêntico ao Admin")
+st.write("(3.0.2) - Correção da oscilação/piscar da tela gerada pelo loop anti-lag utilizando fragmentação invisível.")
 
 # --- 🏆 TABELA DE CLASSIFICAÇÃO GLOBAL ---
 st.markdown("---")
@@ -1039,7 +1039,7 @@ if os.path.exists(LEADERBOARD_FILE):
         usuarios_unicos = {}
         for jogador in dados_placar:
             nome = jogador["Jogador"]
-            pontos = player.get("Pontos", jogador.get("Points", 0))
+            pontos = jogador.get("Pontos", jogador.get("Points", 0))
             if nome.lower() not in usuarios_unicos or pontos > usuarios_unicos[nome.lower()]["Pontos"]:
                 usuarios_unicos[nome.lower()] = {"Jogador": nome, "Pontos": pontos}
         
