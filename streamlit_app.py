@@ -190,7 +190,6 @@ def injetar_js_localstorage():
         let contas = localStorage.getItem("clicker_saved_accounts") || "{}";
         const streamlitInput = parentDoc.querySelector('input[aria-label="bridge_storage_input"]');
         if (streamlitInput && streamlitInput.value !== contas) {
-            // Só atualiza se o valor vindo do localStorage for válido para evitar inputs fantasmas
             if (contas !== "{}") {
                 streamlitInput.value = contas;
                 streamlitInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -217,7 +216,6 @@ def injetar_js_localstorage():
         }
     });
 
-    // Força execução rápida inicial e repetições curtas
     setTimeout(sincronizar, 100);
     setInterval(sincronizar, 1000);
     </script>
@@ -235,7 +233,6 @@ if "nome_usuario" not in st.session_state:
 bridge_data = st.text_input("bridge_storage_input", key="bridge_storage_input", label_visibility="collapsed")
 injetar_js_localstorage()
 
-# Restaura as contas locais do LocalStorage e injeta de volta para o Servidor se necessário
 try:
     contas_locais = json.loads(bridge_data) if bridge_data else {}
     if contas_locais:
@@ -250,7 +247,6 @@ try:
 except Exception:
     contas_locais = {}
 
-# Re-sincroniza o banco local do servidor com o que o jogador salvou no navegador
 todos_usuarios_server = carregar_todos_usuarios()
 for k, v in contas_locais.items():
     if k not in todos_usuarios_server:
@@ -295,7 +291,6 @@ if not st.session_state.logado:
                 
                 st.session_state["tmp_logged_password"] = log_pass
                 
-                # Garante que ao logar com sucesso ela se auto-salve no LocalStorage local do navegador também
                 st.components.v1.html(f"""
                 <script>
                 window.parent.postMessage({{
@@ -402,7 +397,6 @@ if not st.session_state.logado:
                 usuarios[user_key] = nova_conta
                 salvar_todos_usuarios(usuarios)
                 
-                # Registra imediatamente no navegador para evitar perdas
                 st.components.v1.html(f"""
                 <script>
                 window.parent.postMessage({{
@@ -421,7 +415,7 @@ if not st.session_state.logado:
     st.stop()
 
 # =====================================================================
-# 🎮 INTERFACE E LOGICA PRINCIPAL DO JOGO (SEGUE O RESTANTE DO SEU CÓDIGO)
+# 🎮 INTERFACE E LOGICA PRINCIPAL DO JOGO
 # =====================================================================
 
 if "poder_clique" not in st.session_state:
@@ -530,7 +524,6 @@ with st.sidebar:
     st.write(f"Conectado como: **{prefixo_exibicao}{st.session_state.nome_usuario}**")
     
     st.caption("✓ Conta sincronizada no navegador.")
-    # Força salvamento manual se quiser garantir o backup imediato
     if st.button("🔄 Forçar Redundância Manual", use_container_width=True):
         usuarios = carregar_todos_usuarios()
         key_user = st.session_state.nome_usuario.lower()
@@ -1204,18 +1197,16 @@ if st.session_state.nome_usuario:
     atualizar_no_leaderboard(st.session_state.nome_usuario, st.session_state.pontos)
 
 # =====================================================================
-# 🗿 SISTEMA DE TOTENS (ADICIONADO SEM ALTERAR NENHUMA LINHA ORIGINAL)
+# 🗿 SISTEMA DE TOTENS
 # =====================================================================
 st.markdown("---")
 st.subheader("🗿 Sistema de Totens")
 
-# Inicialização segura das variáveis de estado do Totem
 if "totem_clique_nivel" not in st.session_state:
     st.session_state.totem_clique_nivel = 0
 if "totem_passivo_nivel" not in st.session_state:
     st.session_state.totem_passivo_nivel = 0
 
-# Configurações de Custo e Bônus dos Totens
 CUSTO_BASE_TOTEM = 5000000
 MULTIPLICADOR_CUSTO_TOTEM = 3.5
 
@@ -1323,7 +1314,6 @@ else:
                 }
                 salvar_todos_usuarios(usuarios)
             
-            # Limpa do navegador também se resetar tudo
             st.components.v1.html(f"""<script>window.parent.postMessage({{type: "REMOVE_ACCOUNT", user: "{user_key}"}}, "*");</script>""", height=0, width=0)
             resetar_estados_jogador_local()
             st.success("Jogo reiniciado com sucesso!")
