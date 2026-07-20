@@ -68,7 +68,7 @@ def tem_titulo(titulo_necessario):
     return False
 
 def salvar_progresso_atual():
-    if st.session_state.get("logado") and st.session_state.get("nome_usuario"):
+    if st.session_state.logado and st.session_state.nome_usuario:
         usuarios = carregar_todos_usuarios()
         username_key = st.session_state.nome_usuario.lower()
         
@@ -180,42 +180,83 @@ def resetar_estados_jogador_local():
     st.session_state.pontos_leaderboard_cache = 0
     atualizar_poder_clique()
 
-# --- 🚀 SISTEMA DE MEMÓRIA COMPARTILHADA ENTRE ABAS (COOKIES & DISCO) ---
-# Força a gravação de um Cookie limpo na janela principal (acessível por todas as abas)
-def injetar_sincronizador_abas():
-    js_sincronizador = """
+# --- COMPONENTE JAVASCRIPT CORRIGIDO ---
+def injetar_js_localstorage():
+    js_code = """
     <script>
     const parentDoc = window.parent.document;
     
-    // Função para ler cookies da janela principal
-    function lerCookieAbas(name) {
-        let nameEQ = name + "=";
-        let ca = window.parent.document.cookie.split(';');
-        for(let i=0;i < ca.length;i++) {
-            let c = ca[i];
-            while (c.charAt(0)==' ') c = c.substring(1,c.length);
-            if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length,c.length);
+    function sincronizar() {
+        let contas = localStorage.getItem("clicker_saved_accounts") || "{}";
+        const streamlitInput = parentDoc.querySelector('input[aria-label="bridge_storage_input"]');
+        if (streamlitInput && streamlitInput.value !== contas) {
+            // Só atualiza se o valor vindo do localStorage for válido para evitar inputs fantasmas
+            if (contas !== "{}") {
+                streamlitInput.value = contas;
+                streamlitInput.dispatchEvent(new Event('input', { bubbles: true }));
+            }
         }
-        return null;
     }
 
-    // Verifica se existe login ativo guardado no navegador e avisa o servidor
-    let contaSalva = lerCookieAbas("clicker_shared_session");
-    if (contaSalva) {
-        window.parent.postMessage({type: "AUTO_LOGIN_REQUEST", data: contaSalva}, "*");
-    }
+    window.addEventListener("message", function(event) {
+        if (event.data.type === "SAVE_ACCOUNT") {
+            let contas = JSON.parse(localStorage.getItem("clicker_saved_accounts") || "{}");
+            contas[event.data.user.toLowerCase()] = {
+                usuario: event.data.user, 
+                senha: event.data.password,
+                dados_completos: event.data.dados_completos
+            };
+            localStorage.setItem("clicker_saved_accounts", JSON.stringify(contas));
+            sincronizar();
+        }
+        if (event.data.type === "REMOVE_ACCOUNT") {
+            let contas = JSON.parse(localStorage.getItem("clicker_saved_accounts") || "{}");
+            delete contas[event.data.user.toLowerCase()];
+            localStorage.setItem("clicker_saved_accounts", JSON.stringify(contas));
+            sincronizar();
+        }
+    });
+
+    // Força execução rápida inicial e repetições curtas
+    setTimeout(sincronizar, 100);
+    setInterval(sincronizar, 1000);
     </script>
     """
-    components.html(js_sincronizador, height=0, width=0)
+    components.html(js_code, height=0, width=0)
 
-# Inicialização de Variáveis de Controle no Session State
+# --- INICIALIZAÇÃO DE SESSÃO ---
+
 if "logado" not in st.session_state:
     st.session_state.logado = False
 if "nome_usuario" not in st.session_state:
     st.session_state.nome_usuario = ""
 
-# Executa o sincronizador nativo de abas
-injetar_sincronizador_abas()
+# Input oculto de ponte
+bridge_data = st.text_input("bridge_storage_input", key="bridge_storage_input", label_visibility="collapsed")
+injetar_js_localstorage()
+
+# Restaura as contas locais do LocalStorage e injeta de volta para o Servidor se necessário
+try:
+    contas_locais = json.loads(bridge_data) if bridge_data else {}
+    if contas_locais:
+        usuarios_server = carregar_todos_usuarios()
+        alterou = False
+        for k, v in contas_locais.items():
+            if k not in usuarios_server:
+                usuarios_server[k] = v["dados_completos"]
+                alterou = True
+        if alterou:
+            salvar_todos_usuarios(usuarios_server)
+except Exception:
+    contas_locais = {}
+
+# Re-sincroniza o banco local do servidor com o que o jogador salvou no navegador
+todos_usuarios_server = carregar_todos_usuarios()
+for k, v in contas_locais.items():
+    if k not in todos_usuarios_server:
+        todos_usuarios_server[k] = v["dados_completos"]
+salvar_todos_usuarios(todos_usuarios_server)
+
 
 # =====================================================================
 # 🔐 TELA DE LOGIN / REGISTRO COM CAPTURA PERMANENTE DO NAVEGADOR
@@ -223,7 +264,7 @@ injetar_sincronizador_abas()
 if not st.session_state.logado:
     st.title("Clicker Game - Login")
     
-    aba_login, aba_salvas, aba_registro = st.tabs(["Entrar na Conta", "Contas Salvas Neste Dispositivo 💾", "Criar Nova Conta"])
+    aba_login, aba_salvas, aba_registro = st.tabs(["Entrar na Conta", "Contas Já Criadas 💾", "Criar Nova Conta"])
     
     with aba_login:
         st.subheader("Faça seu Login")
@@ -251,13 +292,18 @@ if not st.session_state.logado:
                 
                 st.session_state.nome_usuario = usuarios[user_key]["nome_exibicao"]
                 st.session_state.logado = True
+                
                 st.session_state["tmp_logged_password"] = log_pass
                 
-                # Injeta a conta de forma definitiva no Cookie raiz do navegador (compartilhado entre abas)
-                cookie_val = f"{st.session_state.nome_usuario}|||{log_pass}"
-                components.html(f"""
+                # Garante que ao logar com sucesso ela se auto-salve no LocalStorage local do navegador também
+                st.components.v1.html(f"""
                 <script>
-                window.parent.document.cookie = "clicker_shared_session={cookie_val}; path=/; max-age=31536000; SameSite=Strict";
+                window.parent.postMessage({{
+                    type: "SAVE_ACCOUNT", 
+                    user: "{usuarios[user_key]['nome_exibicao']}", 
+                    password: "{log_pass}",
+                    dados_completos: {json.dumps(usuarios[user_key])}
+                }}, "*");
                 </script>
                 """, height=0, width=0)
                 
@@ -268,16 +314,13 @@ if not st.session_state.logado:
                 st.error("Usuário ou senha incorretos.")
 
     with aba_salvas:
-        st.subheader("Contas detectadas neste navegador:")
+        st.subheader("Entrar com Conta já Criada no Servidor")
         
-        # Puxa a lista completa de contas registradas no servidor global do jogo
-        usuarios_para_listar = carregar_todos_usuarios()
+        todos_usuarios_server = carregar_todos_usuarios()
         
-        if usuarios_para_listar:
-            opcoes_contas = [bloco.get("nome_exibicao") for bloco in usuarios_para_listar.values() if "nome_exibicao" in bloco]
-            opcoes_contas = list(set(opcoes_contas))
-            
-            conta_selecionada = st.selectbox("Escolha uma das contas do dispositivo:", opcoes_contas)
+        if todos_usuarios_server:
+            opcoes_contas = [dados["nome_exibicao"] for dados in todos_usuarios_server.values()]
+            conta_selecionada = st.selectbox("Escolha uma das contas registradas:", opcoes_contas)
             key_selecionada = conta_selecionada.lower()
             
             st.markdown(f"Para acessar **{conta_selecionada}**, confirme a senha de acesso:")
@@ -286,63 +329,46 @@ if not st.session_state.logado:
             col_entrar, col_remover = st.columns([2, 1])
             
             if col_entrar.button("Confirmar e Entrar", type="primary", use_container_width=True):
-                if key_selecionada in usuarios_para_listar:
-                    senha_salva = usuarios_para_listar[key_selecionada]["senha"]
+                senha_salva = todos_usuarios_server[key_selecionada]["senha"]
+                
+                if senha_confirmacao == senha_salva:
+                    dados = todos_usuarios_server[key_selecionada]["dados"]
+                    st.session_state.pontos = dados.get("pontos", 0)
+                    st.session_state.poder_base = dados.get("poder_base", 1)
+                    st.session_state.pontos_por_segundo = dados.get("pontos_por_segundo", 0)
+                    st.session_state.pet_slot_1 = dados.get("pet_slot_1", None)
+                    st.session_state.pet_slot_2 = dados.get("pet_slot_2", None)
+                    st.session_state.pet_slot_m2_1 = dados.get("pet_slot_m2_1", None)
+                    st.session_state.pet_slot_m2_2 = dados.get("pet_slot_m2_2", None)
+                    st.session_state.ultimo_tick = dados.get("ultimo_tick", time.time())
+                    st.session_state.mundo_2_desbloqueado = dados.get("mundo_2_desbloqueado", False)
+                    st.session_state.mundo_atual = dados.get("mundo_atual", 1)
+                    st.session_state.titulo = dados.get("titulo", "")
+                    st.session_state.pontos_leaderboard_cache = dados.get("pontos", 0)
                     
-                    if senha_confirmacao == senha_salva:
-                        dados = usuarios_para_listar[key_selecionada]["dados"]
-                        st.session_state.pontos = dados.get("pontos", 0)
-                        st.session_state.poder_base = dados.get("poder_base", 1)
-                        st.session_state.pontos_por_segundo = dados.get("pontos_por_segundo", 0)
-                        st.session_state.pet_slot_1 = dados.get("pet_slot_1", None)
-                        st.session_state.pet_slot_2 = dados.get("pet_slot_2", None)
-                        st.session_state.pet_slot_m2_1 = dados.get("pet_slot_m2_1", None)
-                        st.session_state.pet_slot_m2_2 = dados.get("pet_slot_m2_2", None)
-                        st.session_state.ultimo_tick = dados.get("ultimo_tick", time.time())
-                        st.session_state.mundo_2_desbloqueado = dados.get("mundo_2_desbloqueado", False)
-                        st.session_state.mundo_atual = dados.get("mundo_atual", 1)
-                        st.session_state.titulo = dados.get("titulo", "")
-                        st.session_state.pontos_leaderboard_cache = dados.get("pontos", 0)
-                        
-                        st.session_state.nome_usuario = usuarios_para_listar[key_selecionada]["nome_exibicao"]
-                        st.session_state.logado = True
-                        st.session_state["tmp_logged_password"] = senha_salva
-                        
-                        # Fixa o cookie para as próximas abas reconhecerem sozinhas
-                        cookie_val = f"{st.session_state.nome_usuario}|||{senha_salva}"
-                        components.html(f"""
-                        <script>
-                        window.parent.document.cookie = "clicker_shared_session={cookie_val}; path=/; max-age=31536000; SameSite=Strict";
-                        </script>
-                        """, height=0, width=0)
-                        
-                        st.success(f"Olá, {st.session_state.nome_usuario}!")
-                        time.sleep(0.5)
-                        st.rerun()
-                    else:
-                        st.error("Senha incorreta para a conta selecionada!")
+                    st.session_state.nome_usuario = todos_usuarios_server[key_selecionada]["nome_exibicao"]
+                    st.session_state.logado = True
+                    st.session_state["tmp_logged_password"] = senha_salva
+                    
+                    todos_usuarios_server[key_selecionada]["ultimo_login"] = time.strftime("%Y-%m-%d %H:%M:%S")
+                    salvar_todos_usuarios(todos_usuarios_server)
+                    
+                    st.success(f"Olá, {st.session_state.nome_usuario}!")
+                    time.sleep(0.5)
+                    st.rerun()
                 else:
-                    st.error("Esta conta foi modificada ou removida do servidor.")
+                    st.error("Senha incorreta para a conta selecionada!")
                     
-            if col_remover.button("Remover Dispositivo ❌", use_container_width=True):
-                banco_servidor = carregar_todos_usuarios()
-                if key_selecionada in banco_servidor:
-                    del banco_servidor[key_selecionada]
-                    salvar_todos_usuarios(banco_servidor)
+            if col_remover.button("Remover da Lista ❌", use_container_width=True):
+                del todos_usuarios_server[key_selecionada]
+                salvar_todos_usuarios(todos_usuarios_server)
                 remover_jogador_leaderboard(key_selecionada)
-                
-                # Limpa o cookie local para esquecer a sessão
-                components.html("""
-                <script>
-                window.parent.document.cookie = "clicker_shared_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-                </script>
-                """, height=0, width=0)
-                
-                st.toast("Conta removida com sucesso!")
+                st.components.v1.html(f"""<script>window.parent.postMessage({{type: "REMOVE_ACCOUNT", user: "{key_selecionada}"}}, "*");</script>""", height=0, width=0)
+                st.toast("Conta deletada do servidor!")
                 time.sleep(0.5)
                 st.rerun()
         else:
-            st.info("Nenhuma conta salva detectada neste dispositivo. Faça login ou crie uma conta manualmente uma vez para ativar a sincronização automática.")
+            st.info("Nenhuma conta cadastrada no servidor ainda. Crie uma nova conta na aba ao lado.")
                 
     with aba_registro:
         st.subheader("Crie sua Conta")
@@ -376,22 +402,26 @@ if not st.session_state.logado:
                 usuarios[user_key] = nova_conta
                 salvar_todos_usuarios(usuarios)
                 
-                # Salva no cookie compartilhado global do navegador
-                cookie_val = f"{reg_user}|||{reg_pass}"
-                components.html(f"""
+                # Registra imediatamente no navegador para evitar perdas
+                st.components.v1.html(f"""
                 <script>
-                window.parent.document.cookie = "clicker_shared_session={cookie_val}; path=/; max-age=31536000; SameSite=Strict";
+                window.parent.postMessage({{
+                    type: "SAVE_ACCOUNT", 
+                    user: "{reg_user}", 
+                    password: "{reg_pass}",
+                    dados_completos: {json.dumps(nova_conta)}
+                }}, "*");
                 </script>
                 """, height=0, width=0)
                 
-                st.success("Conta criada e guardada de forma permanente nas abas!")
+                st.success("Conta criada com sucesso e guardada permanentemente!")
                 time.sleep(0.5)
                 st.rerun()
                 
     st.stop()
 
 # =====================================================================
-# 🎮 INTERFACE E LOGICA PRINCIPAL DO JOGO 
+# 🎮 INTERFACE E LOGICA PRINCIPAL DO JOGO (SEGUE O RESTANTE DO SEU CÓDIGO)
 # =====================================================================
 
 if "poder_clique" not in st.session_state:
@@ -499,18 +529,26 @@ with st.sidebar:
     prefixo_exibicao = f"[{st.session_state.titulo}] " if st.session_state.titulo else ""
     st.write(f"Conectado como: **{prefixo_exibicao}{st.session_state.nome_usuario}**")
     
-    st.caption("✓ Sessão sincronizada no dispositivo.")
+    st.caption("✓ Conta sincronizada no navegador.")
+    # Força salvamento manual se quiser garantir o backup imediato
+    if st.button("🔄 Forçar Redundância Manual", use_container_width=True):
+        usuarios = carregar_todos_usuarios()
+        key_user = st.session_state.nome_usuario.lower()
+        if key_user in usuarios:
+            st.components.v1.html(f"""
+            <script>
+            window.parent.postMessage({{
+                type: "SAVE_ACCOUNT", 
+                user: "{st.session_state.nome_usuario}", 
+                password: "{st.session_state.get('tmp_logged_password','')}",
+                dados_completos: {json.dumps(usuarios[key_user])}
+            }}, "*");
+            </script>
+            """, height=0, width=0)
+            st.toast("Backup local atualizado!")
 
     if st.button("Sair da Conta (Logout)", type="secondary", use_container_width=True):
         salvar_progresso_atual()
-        
-        # Destrói o cookie ao deslogar para que as abas limpem a memória
-        components.html("""
-        <script>
-        window.parent.document.cookie = "clicker_shared_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-        </script>
-        """, height=0, width=0)
-        
         resetar_estados_jogador_local()
         st.rerun()
         
@@ -543,24 +581,24 @@ with st.sidebar:
                 pass
 
         if placar_completo_dev:
-            usuarios_dev_db = carregar_todos_usuarios()
+            usuarios_db_dev = carregar_todos_usuarios()
             for i, jogador in enumerate(placar_completo_dev):
                 name_jogador = jogador["Jogador"]
                 key_jogador = name_jogador.lower()
                 
                 titulo_atual = ""
-                if key_jogador in usuarios_dev_db:
-                    titulo_atual = usuarios_dev_db[key_jogador]["dados"].get("titulo", "")
+                if key_jogador in usuarios_db_dev:
+                    titulo_atual = usuarios_db_dev[key_jogador]["dados"].get("titulo", "")
                 
                 prefixo_lista = f"[{titulo_atual}] " if titulo_atual else ""
                 st.write(f"**{prefixo_lista}{name_jogador}**")
                 
                 col_dev_pts, col_dev_clk, col_dev_pps, col_dev_t, col_dev_ban = st.columns([1, 1, 1, 1.2, 0.8])
                 
-                if col_dev_pts.button("Pontos", key=f"dev_pts_{key_jogador}_{i}"):
-                    if key_jogador in usuarios_dev_db:
-                        usuarios_dev_db[key_jogador]["dados"]["pontos"] = max(0, usuarios_dev_db[key_jogador]["dados"].get("pontos", 0) + qtd_alteracao)
-                        salvar_todos_usuarios(usuarios_dev_db)
+                if col_dev_pts.button("Pontos", key=f"dev_pts_{key_jogador}_{i}", help="Injeta pontos"):
+                    if key_jogador in usuarios_db_dev:
+                        usuarios_db_dev[key_jogador]["dados"]["pontos"] = max(0, usuarios_db_dev[key_jogador]["dados"].get("pontos", 0) + qtd_alteracao)
+                        salvar_todos_usuarios(usuarios_db_dev)
                     if key_jogador == st.session_state.nome_usuario.lower():
                         st.session_state.pontos += qtd_alteracao
                         st.session_state.pontos_leaderboard_cache = st.session_state.pontos
@@ -571,21 +609,23 @@ with st.sidebar:
                     salvar_leaderboard_completo(placar_completo_dev)
                     st.rerun()
                     
-                if col_dev_clk.button("Poder/C", key=f"dev_clk_{key_jogador}_{i}"):
-                    if key_jogador in usuarios_dev_db:
-                        usuarios_dev_db[key_jogador]["dados"]["poder_base"] = max(1, usuarios_dev_db[key_jogador]["dados"].get("poder_base", 1) + qtd_alteracao)
-                        salvar_todos_usuarios(usuarios_dev_db)
+                if col_dev_clk.button("Poder/C", key=f"dev_clk_{key_jogador}_{i}", help="Injeta Poder Base de clique"):
+                    if key_jogador in usuarios_db_dev:
+                        usuarios_db_dev[key_jogador]["dados"]["poder_base"] = max(1, usuarios_db_dev[key_jogador]["dados"].get("poder_base", 1) + qtd_alteracao)
+                        salvar_todos_usuarios(usuarios_db_dev)
                     if key_jogador == st.session_state.nome_usuario.lower():
                         st.session_state.poder_base += qtd_alteracao
                         atualizar_poder_clique()
+                    st.success("Poder de clique updated!")
                     st.rerun()
 
-                if col_dev_pps.button("Pontos/s", key=f"dev_pps_{key_jogador}_{i}"):
-                    if key_jogador in usuarios_dev_db:
-                        usuarios_dev_db[key_jogador]["dados"]["pontos_por_segundo"] = max(0, usuarios_dev_db[key_jogador]["dados"].get("pontos_por_segundo", 0) + qtd_alteracao)
-                        salvar_todos_usuarios(usuarios_dev_db)
+                if col_dev_pps.button("Pontos/s", key=f"dev_pps_{key_jogador}_{i}", help="Injetar pontos por segundo"):
+                    if key_jogador in usuarios_db_dev:
+                        usuarios_db_dev[key_jogador]["dados"]["pontos_por_segundo"] = max(0, usuarios_db_dev[key_jogador]["dados"].get("pontos_por_segundo", 0) + qtd_alteracao)
+                        salvar_todos_usuarios(usuarios_db_dev)
                     if key_jogador == st.session_state.nome_usuario.lower():
                         st.session_state.pontos_por_segundo += qtd_alteracao
+                    st.success("Pontos/Seg updated!")
                     st.rerun()
 
                 with col_dev_t.popover("Title", use_container_width=True):
@@ -596,20 +636,20 @@ with st.sidebar:
                         idx_atual = 0
                     opcao_titulo = st.selectbox("Escolha:", opcoes_titulos_dev, key=f"sel_dev_t_{key_jogador}_{i}", index=idx_atual)
                     if st.button("Aplicar", key=f"btn_dev_t_{key_jogador}_{i}", use_container_width=True):
-                        if key_jogador in usuarios_dev_db:
+                        if key_jogador in usuarios_db_dev:
                             novo_t = "" if opcao_titulo == "Nenhum" else opcao_titulo
-                            usuarios_dev_db[key_jogador]["dados"]["titulo"] = novo_t
-                            salvar_todos_usuarios(usuarios_dev_db)
+                            usuarios_db_dev[key_jogador]["dados"]["titulo"] = novo_t
+                            salvar_todos_usuarios(usuarios_db_dev)
                             if key_jogador == st.session_state.nome_usuario.lower():
                                 st.session_state.titulo = novo_t
                             st.success("Título Salvo!")
                             time.sleep(0.3)
                             st.rerun()
 
-                if col_dev_ban.button("Ban", key=f"dev_ban_{key_jogador}_{i}"):
-                    if key_jogador in usuarios_dev_db:
-                        del usuarios_dev_db[key_jogador]
-                        salvar_todos_usuarios(usuarios_dev_db)
+                if col_dev_ban.button("Ban", key=f"dev_ban_{key_jogador}_{i}", help="Banimento permanente"):
+                    if key_jogador in usuarios_db_dev:
+                        del usuarios_db_dev[key_jogador]
+                        salvar_todos_usuarios(usuarios_db_dev)
                     placar_completo_dev = [j for j in placar_completo_dev if j["Jogador"].lower() != key_jogador]
                     salvar_leaderboard_completo(placar_completo_dev)
                     if key_jogador == st.session_state.nome_usuario.lower():
@@ -619,6 +659,47 @@ with st.sidebar:
         else:
             st.info("Placar vazio.")
 
+        st.subheader("Inspecionar Jogador")
+        usuarios_db_inspect = carregar_todos_usuarios()
+        mapeamento_jogadores = {usuarios_db_inspect[k]["nome_exibicao"]: k for k in usuarios_db_inspect if "nome_exibicao" in usuarios_db_inspect[k]}
+        lista_jogadores = list(mapeamento_jogadores.keys())
+
+        if lista_jogadores:
+            jogador_selecionado = st.selectbox("Selecione um jogador do banco de dados:", lista_jogadores, key="inspect_select")
+            if st.button("Inspecionar Dados", use_container_width=True, key="btn_inspect_action"):
+                key_inspect = mapeamento_jogadores[jogador_selecionado]
+                dados_player = usuarios_db_inspect[key_inspect]["dados"]
+                visto_ultimo = usuarios_db_inspect[key_inspect].get("ultimo_login", "Não registrado")
+                
+                st.markdown(f"### Status de: **{jogador_selecionado}**")
+                st.write(f" **Último Login Realizado:** {visto_ultimo}")
+                
+                col_ins1, col_ins2, col_ins3 = st.columns(3)
+                col_ins1.metric("Pontos", f"{dados_player.get('pontos', 0):,}")
+                col_ins2.metric("Poder Base", f"{dados_player.get('poder_base', 1):,}")
+                col_ins3.metric("Pontos/Seg", f"{dados_player.get('pontos_por_segundo', 0):,}")
+                
+                mundo_txt = "Mundo 2" if dados_player.get("mundo_atual", 1) == 2 else "Mundo 1"
+                m2_liberado = "Sim" if dados_player.get("mundo_2_desbloqueado", False) else "Não"
+                st.write(f" **Mundo Atual:** {mundo_txt} |  **Mundo 2 Desbloqueado?** {m2_liberado}")
+                
+                st.markdown(" **Pets Equipados:**")
+                col_p1, col_p2 = st.columns(2)
+                with col_p1:
+                    st.write("**Mundo 1 Slots:**")
+                    p1 = dados_player.get("pet_slot_1")
+                    p2 = dados_player.get("pet_slot_2")
+                    st.write(f"Slot 1: {p1['nome']} (+{p1['bonus']:,})" if p1 else "Slot 1: Vazio")
+                    st.write(f"Slot 2: {p2['nome']} (+{p2['bonus']:,})" if p2 else "Slot 2: Vazio")
+                with col_p2:
+                    st.write("**Mundo 2 Slots:**")
+                    pm1 = dados_player.get("pet_slot_m2_1")
+                    pm2 = dados_player.get("pet_slot_m2_2")
+                    st.write(f"Slot 1: {pm1['nome']} (+{pm1['bonus']:,})" if pm1 else "Slot 1: Vazio")
+                    st.write(f"Slot 2: {pm2['nome']} (+{pm2['bonus']:,})" if pm2 else "Slot 2: Vazio")
+        else:
+            st.info("Nenhuma conta cadastrada no banco de dados ainda.")
+        
     st.markdown("---")
     
     # ⚙️ PAINEL DE ADMIN
@@ -694,7 +775,9 @@ with st.sidebar:
                             break
                     salvar_leaderboard_completo(placar_completo)
                     st.rerun()
-
+        else:
+            st.info("Nenhum jogador registrado no placar ainda.")
+            
         st.markdown("---")
         st.subheader("Mensagem Global")
         nova_msg = st.text_input("Texto Global:", value=aviso_sistema, placeholder="Digite o aviso geral aqui...", key="admin_msg_field")
@@ -706,6 +789,11 @@ with st.sidebar:
             st.success("Mensagem enviada!")
             time.sleep(0.3)
             st.rerun()
+            
+        if col_msg2.button("Apagar", type="secondary", use_container_width=True, key="admin_clear_msg"):
+            config_globais["mensagem"] = ""
+            salvar_configuracoes_globais(config_globais)
+            st.rerun()
 
         st.markdown("---")
         st.subheader("Eventos de Admin")
@@ -714,26 +802,72 @@ with st.sidebar:
         st.write(f"Multiplicador de Dinheiro: **{status_evento}**")
         
         col_ev2x, col_ev3x, col_ev4x, col_ev5x = st.columns(4)
-        if col_ev2x.button("Ativar 2X", key="btn_ev2", use_container_width=True):
+        if col_ev2x.button("Ativar 2X", key="btn_ev2", use_container_width=True, disabled=(mult_evento == 2)):
             config_globais["multiplicador_evento"] = 2
             salvar_configuracoes_globais(config_globais)
+            st.success("Evento 2X Ativado!")
+            time.sleep(0.4)
             st.rerun()
-        if col_ev3x.button("Ativar 3X", key="btn_ev3", use_container_width=True):
+        if col_ev3x.button("Ativar 3X", key="btn_ev3", use_container_width=True, disabled=(mult_evento == 3)):
             config_globais["multiplicador_evento"] = 3
             salvar_configuracoes_globais(config_globais)
+            st.success("Evento 3X Ativado!")
+            time.sleep(0.4)
             st.rerun()
-        if col_ev4x.button("Ativar 4X", key="btn_ev4", use_container_width=True):
+        if col_ev4x.button("Ativar 4X", key="btn_ev4", use_container_width=True, disabled=(mult_evento == 4)):
             config_globais["multiplicador_evento"] = 4
             salvar_configuracoes_globais(config_globais)
+            st.success("Evento 4X Ativado!")
+            time.sleep(0.4)
             st.rerun()
-        if col_ev5x.button("Ativar 5X", key="btn_ev5", use_container_width=True):
+        if col_ev5x.button("Ativar 5X", key="btn_ev5", use_container_width=True, disabled=(mult_evento == 5)):
             config_globais["multiplicador_evento"] = 5
             salvar_configuracoes_globais(config_globais)
+            st.success("Evento 5X Ativado!")
+            time.sleep(0.4)
             st.rerun()
         
-        if st.button("Desativar Evento", type="secondary", use_container_width=True, key="btn_desativar_evento"):
+        if st.button("Desativar", type="secondary", use_container_width=True, disabled=(mult_evento == 1), key="btn_desativar_evento"):
             config_globais["multiplicador_evento"] = 1
             salvar_configuracoes_globais(config_globais)
+            st.warning("Multiplicador do Evento Disativado!")
+            time.sleep(0.4)
+            st.rerun()
+
+        status_sorte = f"ATIVADO ({mult_sorte}X)" if mult_sorte > 1 else "DESATIVADO"
+        st.write(f"Multiplicador de Sorte: **{status_sorte}**")
+
+        col_st2x, col_st3x, col_st4x, col_st5x = st.columns(4)
+        if col_st2x.button("Sorte 2X", key="btn_st2", use_container_width=True, disabled=(mult_sorte == 2)):
+            config_globais["multiplicador_sorte"] = 2
+            salvar_configuracoes_globais(config_globais)
+            st.success("Sorte de Drop 2X Ativada!")
+            time.sleep(0.4)
+            st.rerun()
+        if col_st3x.button("Sorte 3X", key="btn_st3", use_container_width=True, disabled=(mult_sorte == 3)):
+            config_globais["multiplicador_sorte"] = 3
+            salvar_configuracoes_globais(config_globais)
+            st.success("Sorte de Drop 3X Ativada!")
+            time.sleep(0.4)
+            st.rerun()
+        if col_st4x.button("Sorte 4X", key="btn_st4", use_container_width=True, disabled=(mult_sorte == 4)):
+            config_globais["multiplicador_sorte"] = 4
+            salvar_configuracoes_globais(config_globais)
+            st.success("Sorte de Drop 4X Ativada!")
+            time.sleep(0.4)
+            st.rerun()
+        if col_st5x.button("Sorte 5X", key="btn_st5", use_container_width=True, disabled=(mult_sorte == 5)):
+            config_globais["multiplicador_sorte"] = 5
+            salvar_configuracoes_globais(config_globais)
+            st.success("Sorte de Drop 5X Ativada!")
+            time.sleep(0.4)
+            st.rerun()
+
+        if st.button("Desativar", type="secondary", use_container_width=True, disabled=(mult_sorte == 1), key="btn_desativar_sorte"):
+            config_globais["multiplicador_sorte"] = 1
+            salvar_configuracoes_globais(config_globais)
+            st.warning("Multiplicador de Sorte Disativado!")
+            time.sleep(0.4)
             st.rerun()
 
     st.markdown("---")
@@ -760,6 +894,7 @@ with st.sidebar:
         st.subheader("Add/Rem seus pontos")
         qtd_pontos_apoio = st.number_input("Quantidade de pontos para Add/Rem:", min_value=1, value=50000, step=1000, key="qtd_pontos_apoio")
         
+        st.subheader("Seu saldo:")
         col_apoio1, col_apoio2, col_apoio3 = st.columns([2, 1, 1])
         col_apoio1.write(f"**Você {st.session_state.nome_usuario}**: {st.session_state.pontos:,} pts")
         
@@ -808,6 +943,8 @@ if not st.session_state.mundo_2_desbloqueado:
             st.session_state.mundo_2_desbloqueado = True
             st.session_state.mundo_atual = 2
             salvar_progresso_atual()
+            st.success("Indo para o mundo 2...")
+            time.sleep(1)
             st.rerun()
 else:
     if st.session_state.mundo_atual == 1:
@@ -827,8 +964,12 @@ st.markdown("---")
 if st.session_state.mundo_atual == 2:
     st.subheader("Segundo mundo")
     st.info("2X de multiplicador de mundo")
-    try: st.audio("musica67.mp3") 
-    except Exception: pass
+    
+    st.write("Trilha sonora: on/off")
+    try:
+        st.audio("musica67.mp3") 
+    except Exception:
+        pass
 
     renderizar_area_clique()
     st.markdown("---")
@@ -843,23 +984,30 @@ if st.session_state.mundo_atual == 2:
         st.write(f"{NOME_PET_8}: {ch2_m2_o1:.1f}% (+{BONUS_PET_8:,} Pts)")
         st.write(f"{NOME_PET_9}: **{ch3_m2_o1:.1f}%** (+{BONUS_PET_9:,} Pts)")
         
-        if st.button(f"Abrir Ovo = {CUSTO_OVO_MUNDO_2_BARATO:,} Pts", disabled=(st.session_state.pontos < CUSTO_OVO_MUNDO_2_BARATO), key="botao_m2_ovo1"):
-            st.session_state.pontos -= CUSTO_OVO_MUNDO_2_BARATO
-            sorteado = random.choices(
-               [{"nome": NOME_PET_7, "arquivo": "logo7.png", "bonus": BONUS_PET_7}, 
-                {"nome": NOME_PET_8, "arquivo": "logo8.png", "bonus": BONUS_PET_8},
-                {"nome": NOME_PET_9, "arquivo": "logo9.png", "bonus": BONUS_PET_9}],
-               weights=[ch1_m2_o1, ch2_m2_o1, ch3_m2_o1], k=1
-            )[0]
-            st.session_state.pet_slot_m2_1 = sorteado
-            atualizar_poder_clique()
-            salvar_progresso_atual()
-            st.rerun()
+        desativar_m2_ovo1 = st.session_state.pontos < CUSTO_OVO_MUNDO_2_BARATO or loja_em_cooldown
+        if st.button(f"Abrir Ovo = {CUSTO_OVO_MUNDO_2_BARATO:,} Pontos", disabled=desativar_m2_ovo1, key="botao_m2_ovo1"):
+            if st.session_state.pontos >= CUSTO_OVO_MUNDO_2_BARATO:
+                st.session_state.pontos -= CUSTO_OVO_MUNDO_2_BARATO
+                sorteado = random.choices(
+                   [{"nome": NOME_PET_7, "arquivo": "logo7.png", "bonus": BONUS_PET_7, "chance": "50%"}, 
+                    {"nome": NOME_PET_8, "arquivo": "logo8.png", "bonus": BONUS_PET_8, "chance": "35%"},
+                    {"nome": NOME_PET_9, "arquivo": "logo9.png", "bonus": BONUS_PET_9, "chance": "15%"}],
+                   weights=[ch1_m2_o1, ch2_m2_o1, ch3_m2_o1], k=1
+                )[0]
+                st.session_state.pet_slot_m2_1 = sorteado
+                atualizar_poder_clique()
+                st.session_state.ultima_compra = 0.0  
+                salvar_progresso_atual()
+                time.sleep(0.5) 
+                st.rerun()
 
         if st.session_state.pet_slot_m2_1:
             pet = st.session_state.pet_slot_m2_1
-            try: st.image(pet["arquivo"], width=167)
-            except Exception: pass
+            st.write("**Pet Equipado:**")
+            try:
+                st.image(pet["arquivo"], width=167)
+            except Exception:
+                st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada.")
             st.caption(f"{pet['nome']} | +{calcular_bonus_pet(pet):,} por clique")
 
     ch1_m2_o2, ch2_m2_o2, ch3_m2_o2 = calcular_chances_ovo(50, 35, 15)
@@ -870,29 +1018,40 @@ if st.session_state.mundo_atual == 2:
         st.write(f"{NOME_PET_M2_R2}: {ch2_m2_o2:.1f}% (+{BONUS_PET_M2_R2:,} Pts)")
         st.write(f"{NOME_PET_M2_R3}: **{ch3_m2_o2:.1f}%** (+{BONUS_PET_M2_R3:,} Pts)")
         
-        if st.button(f"Abrir Ovo = {CUSTO_OVO_MUNDO_2_CARO:,} Pts", disabled=(st.session_state.pontos < CUSTO_OVO_MUNDO_2_CARO), key="botao_m2_ovo2"):
-            st.session_state.pontos -= CUSTO_OVO_MUNDO_2_CARO
-            sorteado = random.choices(
-               [{"nome": NOME_PET_M2_R1, "arquivo": "logo10.png", "bonus": BONUS_PET_M2_R1}, 
-                {"nome": NOME_PET_M2_R2, "arquivo": "logo11.png", "bonus": BONUS_PET_M2_R2},
-                {"nome": NOME_PET_M2_R3, "arquivo": "logo12.png", "bonus": BONUS_PET_M2_R3}],
-               weights=[ch1_m2_o2, ch2_m2_o2, ch3_m2_o2], k=1
-            )[0]
-            st.session_state.pet_slot_m2_2 = sorteado
-            atualizar_poder_clique()
-            salvar_progresso_atual()
-            st.rerun()
+        desativar_m2_ovo2 = st.session_state.pontos < CUSTO_OVO_MUNDO_2_CARO or loja_em_cooldown
+        if st.button(f"Abrir Ovo = {CUSTO_OVO_MUNDO_2_CARO:,} Pontos", disabled=desativar_m2_ovo2, key="botao_m2_ovo2"):
+            if st.session_state.pontos >= CUSTO_OVO_MUNDO_2_CARO:
+                st.session_state.pontos -= CUSTO_OVO_MUNDO_2_CARO
+                sorteado = random.choices(
+                   [{"nome": NOME_PET_M2_R1, "arquivo": "logo10.png", "bonus": BONUS_PET_M2_R1, "chance": "50%"}, 
+                    {"nome": NOME_PET_M2_R2, "arquivo": "logo11.png", "bonus": BONUS_PET_M2_R2, "chance": "35%"},
+                    {"nome": NOME_PET_M2_R3, "arquivo": "logo12.png", "bonus": BONUS_PET_M2_R3, "chance": "15%"}],
+                   weights=[ch1_m2_o2, ch2_m2_o2, ch3_m2_o2], k=1
+                )[0]
+                st.session_state.pet_slot_m2_2 = sorteado
+                atualizar_poder_clique()
+                st.session_state.ultima_compra = 0.0  
+                salvar_progresso_atual()
+                time.sleep(0.5) 
+                st.rerun()
 
         if st.session_state.pet_slot_m2_2:
             pet = st.session_state.pet_slot_m2_2
-            try: st.image(pet["arquivo"], width=120)
-            except Exception: pass
+            st.write("**Pet Equipado:**")
+            try:
+                st.image(pet["arquivo"], width=120)
+            except Exception:
+                st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada.")
             st.caption(f"{pet['nome']} | +{calcular_bonus_pet(pet):,} por clique")
 
-else:
+# --- CONTEÚDO MUNDO 1 ---
+if st.session_state.mundo_atual != 2:
     st.subheader("Primeiro Mundo")
-    try: st.audio("musica67.mp3")
-    except Exception: pass
+    st.write("Trilha sonora: on/off")
+    try:
+        st.audio("musica67.mp3")
+    except Exception:
+        st.caption("🎵 Arquivo 'musica67.mp3' não encontrado.")
 
     renderizar_area_clique()
     st.markdown("---")
@@ -904,53 +1063,69 @@ else:
     with col3:
         st.write("### Ovo Comum:")
         st.write(f"Siruriru: {ch1_m1_o1:.1f}% (+1 Ponto)")
-        st.write(f"Peppa Pig: {ch2_m1_o1:.1f}% (+5 Pts)")
-        st.write(f"Manoel G: **{ch3_m1_o1:.1f}%** (+10 Pts)")
+        st.write(f"Peppa Pig: {ch2_m1_o1:.1f}% (+5 Pontos)")
+        st.write(f"Manoel G: **{ch3_m1_o1:.1f}%** (+10 Pontos)")
         
-        if st.button("Abrir Ovo = 100 Pts", disabled=(st.session_state.pontos < 100), key="botao_ovo1"):
-            st.session_state.pontos -= 100
-            sorteado_ovo1 = random.choices(
-               [{"nome": "Siruriru", "arquivo": "logo3.png", "bonus": 1}, 
-                {"nome": "Peppa Pig", "arquivo": "logo2.png", "bonus": 5},
-                {"nome": "Manoel G", "arquivo": "logo1.png", "bonus": 10}],
-               weights=[ch1_m1_o1, ch2_m1_o1, ch3_m1_o1], k=1
-            )[0]
-            st.session_state.pet_slot_1 = sorteado_ovo1
-            atualizar_poder_clique()
-            salvar_progresso_atual()
-            st.rerun()
+        custo_ovo1 = 100
+        desativar_ovo1 = st.session_state.pontos < custo_ovo1 or loja_em_cooldown
+        if st.button(f"Abrir Ovo = {custo_ovo1} Pontos", disabled=desativar_ovo1, key="botao_ovo1"):
+            if st.session_state.pontos >= custo_ovo1:
+                st.session_state.pontos -= custo_ovo1
+                sorteado_ovo1 = random.choices(
+                   [{"nome": "Siruriru", "arquivo": "logo3.png", "bonus": 1, "chance": "50%"}, 
+                    {"nome": "Peppa Pig", "arquivo": "logo2.png", "bonus": 5, "chance": "35%"},
+                    {"nome": "Manoel G", "arquivo": "logo1.png", "bonus": 10, "chance": "15%"}],
+                   weights=[ch1_m1_o1, ch2_m1_o1, ch3_m1_o1], k=1
+                )[0]
+                st.session_state.pet_slot_1 = sorteado_ovo1
+                atualizar_poder_clique()
+                st.session_state.ultima_compra = 0.0  
+                salvar_progresso_atual()
+                time.sleep(0.5) 
+                st.rerun()
 
         if st.session_state.pet_slot_1:
             pet = st.session_state.pet_slot_1
-            try: st.image(pet["arquivo"], width=188)
-            except Exception: pass
+            st.write("**Pet Equipado:**")
+            try:
+                st.image(pet["arquivo"], width=188)
+            except Exception:
+                st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada.")
             st.caption(f"{pet['nome']} | +{calcular_bonus_pet(pet)} por clique")
 
     ch1_m1_o2, ch2_m1_o2, ch3_m1_o2 = calcular_chances_ovo(50, 35, 15)
 
     with col4:
         st.write("### Ovo Raro:")
-        st.write(f"Dora A.: {ch1_m1_o2:.1f}% (+10 Pts)")
-        st.write(f"Sonic: {ch2_m1_o2:.1f}% (+50 Pts)")
-        st.write(f"Michael J.: **{ch3_m1_o2:.1f}%** (+100 Pts)")
+        st.write(f"Dora A.: {ch1_m1_o2:.1f}% (+10 Pontos)")
+        st.write(f"Sonic: {ch2_m1_o2:.1f}% (+50 Pontos)")
+        st.write(f"Michael J.: **{ch3_m1_o2:.1f}%** (+100 Pontos) 🍀")
         
-        if st.button("Abrir Ovo = 1,000 Pts", disabled=(st.session_state.pontos < 1000), key="botao_ovo2"):
-            st.session_state.pontos -= 1000
-            sorteado_ovo2 = random.choices(
-               [{"nome": "Dora A.", "arquivo": "logo4.png", "bonus": 10}, 
-                {"nome": "Sonic", "arquivo": "logo5.png", "bonus": 50},
-                {"nome": "Michael J.", "arquivo": "logo6.png", "bonus": 100}],
-               weights=[ch1_m1_o2, ch2_m1_o2, ch3_m1_o2], k=1
-            )[0]
-            st.session_state.pet_slot_2 = sorteado_ovo2
-            atualizar_poder_clique()
-            salvar_progresso_atual()
-            st.rerun()
+        custo_ovo2 = 1000
+        desativar_ovo2 = st.session_state.pontos < custo_ovo2 or loja_em_cooldown
+        if st.button(f"Abrir Ovo = {custo_ovo2} Pontos", disabled=desativar_ovo2, key="botao_ovo2"):
+            if st.session_state.pontos >= custo_ovo2:
+                st.session_state.pontos -= custo_ovo2
+                sorteado_ovo2 = random.choices(
+                   [{"nome": "Dora A.", "arquivo": "logo4.png", "bonus": 10, "chance": "50%"}, 
+                    {"nome": "Sonic", "arquivo": "logo5.png", "bonus": 50, "chance": "35%"},
+                    {"nome": "Michael J.", "arquivo": "logo6.png", "bonus": 100, "chance": "15%"}],
+                   weights=[ch1_m1_o2, ch2_m1_o2, ch3_m1_o2], k=1
+                )[0]
+                st.session_state.pet_slot_2 = sorteado_ovo2
+                atualizar_poder_clique()
+                st.session_state.ultima_compra = 0.0  
+                salvar_progresso_atual()
+                time.sleep(0.5) 
+                st.rerun()
 
         if st.session_state.pet_slot_2:
             pet = st.session_state.pet_slot_2
-            try: st.image(pet["arquivo"], width=100)
-            except Exception: pass
+            st.write("**Pet Equipado:**")
+            try:
+                st.image(pet["arquivo"], width=100)
+            except Exception:
+                st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada.")
             st.caption(f"{pet['nome']} | +{calcular_bonus_pet(pet)} por clique")
 
 st.markdown("---")
@@ -962,47 +1137,78 @@ if st.session_state.mundo_atual == 2:
     melhorias_clique = [
         {"qtd": 50000, "custo": 15000000}, {"qtd": 100000, "custo": 50000000},
         {"qtd": 250000, "custo": 150000000}, {"qtd": 500000, "custo": 500000000},
-        {"qtd": 1000000, "custo": 1000000000}
+        {"qtd": 1000000, "custo": 1000000000}, {"qtd": 2500000, "custo": 3500000000},
+        {"qtd": 5000000, "custo": 8000000000}, {"qtd": 10000000, "custo": 20000000000},
+        {"qtd": 25000000, "custo": 50000000000}, {"qtd": 50000000, "custo": 100000000000}
     ]
     melhorias_passivas = [
         {"qtd": 50000, "custo": 4000000}, {"qtd": 100000, "custo": 12000000},
         {"qtd": 250000, "custo": 40000000}, {"qtd": 500000, "custo": 120000000},
-        {"qtd": 1000000, "custo": 400000000}
+        {"qtd": 1000000, "custo": 400000000}, {"qtd": 2000000, "custo": 1000000000},
+        {"qtd": 5000000, "custo": 3000000000}, {"qtd": 10000000, "custo": 7500000000},
+        {"qtd": 20000000, "custo": 15000000000}, {"qtd": 50000000, "custo": 40000000000}
     ]
 else:
     melhorias_clique = [
         {"qtd": 1, "custo": 100}, {"qtd": 5, "custo": 500}, {"qtd": 10, "custo": 1000},
-        {"qtd": 50, "custo": 5000}, {"qtd": 100, "custo": 10000}
+        {"qtd": 50, "custo": 5000}, {"qtd": 100, "custo": 10000}, {"qtd": 500, "custo": 50000},
+        {"qtd": 1000, "custo": 100000}, {"qtd": 2500, "custo": 250000}, {"qtd": 5000, "custo": 500005},
+        {"qtd": 10000, "custo": 1000000}
     ]
     melhorias_passivas = [
         {"qtd": 5, "custo": 200}, {"qtd": 10, "custo": 600}, {"qtd": 20, "custo": 1100},
-        {"qtd": 100, "custo": 7500}, {"qtd": 200, "custo": 14500}
+        {"qtd": 100, "custo": 7500}, {"qtd": 200, "custo": 14500}, {"qtd": 1000, "custo": 72500},
+        {"qtd": 2000, "custo": 145000}, {"qtd": 5000, "custo": 360000}, {"qtd": 10000, "custo": 725000},
+        {"qtd": 20000, "custo": 1450000}
     ]
 
 col1, col2 = st.columns(2)
 with col1:
     st.subheader("Melhoria Clicker")
-    with st.container(height=300):
+    with st.container(height=350):
         for i, item in enumerate(melhorias_clique):
-            if st.button(f"+{item['qtd']:,} clk | {item['custo']:,} Pts", key=f"c_{st.session_state.mundo_atual}_{i}", disabled=(st.session_state.pontos < item['custo']), use_container_width=True):
-                st.session_state.pontos -= item['custo']
-                st.session_state.poder_base += item['qtd']
-                atualizar_poder_clique()  
-                salvar_progresso_atual()
-                st.rerun()
+            texto = f"+{item['qtd']:,} clk | {item['custo']:,} Pts"
+            desativado = st.session_state.pontos < item['custo'] or loja_em_cooldown
+            key_btn = f"c_{st.session_state.mundo_atual}_{i}"
+
+            if st.button(texto, key=key_btn, disabled=desativado, use_container_width=True):
+                if st.session_state.pontos >= item['custo']:
+                    st.session_state.ultima_compra = time.time()
+                    st.session_state.pontos -= item['custo']
+                    st.session_state.poder_base += item['qtd']
+                    atualizar_poder_clique()  
+                    st.session_state.pontos_leaderboard_cache = st.session_state.pontos
+                    salvar_progresso_atual()
+                    time.sleep(0.1)
+                    st.rerun()
 
 with col2:
     st.subheader("Auto Clickers")
-    with st.container(height=300):
+    with st.container(height=350):
         for i, item in enumerate(melhorias_passivas):
-            if st.button(f"+{item['qtd']:,}/s | {item['custo']:,} Pts", key=f"p_{st.session_state.mundo_atual}_{i}", disabled=(st.session_state.pontos < item['custo']), use_container_width=True):
-                st.session_state.pontos -= item['custo']
-                st.session_state.pontos_por_segundo += item['qtd']
-                salvar_progresso_atual()
-                st.rerun()
+            texto = f"+{item['qtd']:,}/s | {item['custo']:,} Pts"
+            desativado = st.session_state.pontos < item['custo'] or loja_em_cooldown
+            key_btn = f"p_{st.session_state.mundo_atual}_{i}"
+
+            if st.button(texto, key=key_btn, disabled=desativado, use_container_width=True):
+                if st.session_state.pontos >= item['custo']:
+                    st.session_state.ultima_compra = time.time()
+                    st.session_state.pontos -= item['custo']
+                    st.session_state.pontos_por_segundo += item['qtd']
+                    st.session_state.pontos_leaderboard_cache = st.session_state.pontos
+                    salvar_progresso_atual()
+                    time.sleep(0.1)
+                    st.rerun()
 
 if st.session_state.nome_usuario:
     atualizar_no_leaderboard(st.session_state.nome_usuario, st.session_state.pontos)
+
+# --- LOG DE ATUALIZAÇÕES ---
+st.markdown("---")
+st.subheader("Atualizações:")
+st.write("(3.0.0) - Criação do Painel do DEV exclusivo e limitação do painel ADM")
+st.write("(3.0.2) - Correção da oscilação/piscar da tela gerada pelo loop anti-lag utilizando fragmentação invisível.")
+st.write("(3.3.0) - Correção Definitiva do Sistema de Persistência no Navegador (LocalStorage Sync Fix).")
 
 # --- 🏆 TABELA DE CLASSIFICAÇÃO GLOBAL ---
 st.markdown("---")
@@ -1011,13 +1217,59 @@ if os.path.exists(LEADERBOARD_FILE):
     try:
         with open(LEADERBOARD_FILE, "r", encoding="utf-8") as f:
             dados_placar = json.load(f)
+        
         usuarios_unicos = {}
         for jogador in dados_placar:
             nome = jogador["Jogador"]
-            pontos = grandmother = jogador.get("Pontos", 0)
+            pontos = jogador.get("Points", player.get("Pontos", 0))
             if nome.lower() not in usuarios_unicos or pontos > usuarios_unicos[nome.lower()]["Pontos"]:
                 usuarios_unicos[nome.lower()] = {"Jogador": nome, "Pontos": pontos}
+        
         placar_final = sorted(usuarios_unicos.values(), key=lambda x: x["Pontos"], reverse=True)[:5]
+        
         if placar_final:
-            st.table([{"Jogador": j["Jogador"], "Pontos": f"{j['Pontos']:,}"} for j in placar_final])
-    except Exception: pass
+            dados_formatados = [{"Jogador": j["Jogador"], "Pontos": f"{j['Pontos']:,}"} for j in placar_final]
+            st.table(dados_formatados)
+        else:
+            st.info("O placar está vazio.")
+    except Exception:
+        st.info("O placar está vazio.")
+else:
+    st.info("O placar está vazio.")
+
+# --- SISTEMA DE RESET DE JOGO ---
+st.markdown("---")
+if not st.session_state.confirmando_reset:
+    if st.button("Resetar Jogo", use_container_width=True):
+        st.session_state.confirmando_reset = True
+        st.rerun()
+else:
+    st.warning("⚠️ **Você tem certeza absoluta?** Isso apagará permanentemente todos os seus pontos, melhorias, mundos e pets salvos!")
+    col_sim, col_nao = st.columns(2)
+    
+    with col_sim:
+        if st.button("SIM, deletar tudo", type="primary", use_container_width=True):
+            remover_jogador_leaderboard(st.session_state.nome_usuario)
+            usuarios = carregar_todos_usuarios()
+            user_key = st.session_state.nome_usuario.lower()
+            if user_key in usuarios:
+                usuarios[user_key]["dados"] = {
+                    "pontos": 0, "poder_base": 1, "pontos_por_segundo": 0,
+                    "pet_slot_1": None, "pet_slot_2": None,
+                    "pet_slot_m2_1": None, "pet_slot_m2_2": None,
+                    "ultimo_tick": time.time(), "mundo_2_desbloqueado": False, "mundo_atual": 1,
+                    "titulo": ""
+                }
+                salvar_todos_usuarios(usuarios)
+            
+            # Limpa do navegador também se resetar tudo
+            st.components.v1.html(f"""<script>window.parent.postMessage({{type: "REMOVE_ACCOUNT", user: "{user_key}"}}, "*");</script>""", height=0, width=0)
+            resetar_estados_jogador_local()
+            st.success("Jogo reiniciado com sucesso!")
+            time.sleep(0.5)
+            st.rerun()
+            
+    with col_nao:
+        if st.button("NÃO, voltar ao jogo", use_container_width=True):
+            st.session_state.confirmando_reset = False
+            st.rerun()
