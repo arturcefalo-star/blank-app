@@ -8,7 +8,7 @@ from streamlit_autorefresh import st_autorefresh
 import streamlit.components.v1 as components
 
 # Configuração da página precisa ser a primeira linha Streamlit
-st.set_page_config(page_title="Clicker Game", layout="centered")
+st.set_page_config(page_title="Clicker Game Pro", layout="centered")
 
 # =====================================================================
 # ⚙️ EDITE AQUI OS NOMES E BÔNUS BASE DOS PETS DO MUNDO 2 (LOGOS 7, 8 E 9)
@@ -48,7 +48,7 @@ TOTENS_DISPONIVEIS = [
     {"nome": "Totem de Madeira", "raridade": "Comum", "multiplicador": 1.2, "custo": 500, "chance": 40},
     {"nome": "Totem de Pedra", "raridade": "Comum", "multiplicador": 1.5, "custo": 2500, "chance": 25},
     {"nome": "Totem de Ferro", "raridade": "Raro", "multiplicador": 2.0, "custo": 15000, "chance": 15},
-    {"nome": "Totem de Ouro", "raridade": "Raro", "multiplicador": 3.5, "custo": 75000, "chance": 10},
+    {"nome": "Totem de Ouro", "raridade": "Raro", "multiplicador": 77000, "custo": 75000, "chance": 10},
     {"nome": "Totem de Diamante", "raridade": "Épico", "multiplicador": 5.0, "custo": 500000, "chance": 6},
     {"nome": "Totem de Obsidiana", "raridade": "Lendário", "multiplicador": 7.5, "custo": 5000000, "chance": 3},
     {"nome": "Totem Mítico do Olimpo", "raridade": "Mítico", "multiplicador": 10.0, "custo": 50000000, "chance": 1}
@@ -594,7 +594,7 @@ with st.sidebar:
             }}, "*");
             </script>
             """, height=0, width=0)
-            st.toast("Backup local atualizado!")
+            st.toast("Backup local updated!")
 
     if st.button("Sair da Conta (Logout)", type="secondary", use_container_width=True):
         salvar_progresso_atual()
@@ -1183,34 +1183,48 @@ if st.session_state.mundo_atual != 2:
 
 st.markdown("---")
 
-# --- 🌟 NOVA LOJA DE TOTENS ROTATIVA DE 5 MINUTOS 🌟 ---
-st.subheader("🛒 Loja de Totens Místicos")
-tempo_restante_segundos = 300 - (int(time.time()) % 300)
-st.caption(f"⏳ Os itens da loja mudam globalmente em: **{int(tempo_restante_segundos/60)}m {tempo_restante_segundos%60}s**")
+# --- 🌟 NOVA LOJA DE TOTENS ROTATIVA DE 5 MINUTOS (OCULTA EM BOTÃO) 🌟 ---
+if "exibir_loja_totens" not in st.session_state:
+    st.session_state.exibir_loja_totens = False
 
-totens_da_rodada = obter_totens_da_rodada()
-col_tot1, col_tot2, col_tot3 = st.columns(3)
-colunas_totens = [col_tot1, col_tot2, col_tot3]
+# Botão para alternar a exibição da loja
+if st.button("🛒 Abrir Loja de Totens Místicos", use_container_width=True):
+    st.session_state.exibir_loja_totens = not st.session_state.exibir_loja_totens
+    st.rerun()
 
-for idx, totem in enumerate(totens_da_rodada):
-    with colunas_totens[idx]:
-        st.markdown(f"##### {totem['nome']}")
-        st.write(f"⭐ **Raridade:** {totem['raridade']}")
-        st.write(f"⚔️ **Bônus:** {totem['multiplicador']}x Crítico")
-        st.write(f"💰 **Custo:** {totem['custo']:,} Pts")
-        
-        btn_desativado = st.session_state.pontos < totem['custo'] or loja_em_cooldown
-        if st.button(f"Comprar Totem", key=f"btn_buy_totem_{idx}", disabled=btn_desativado, use_container_width=True):
-            if st.session_state.pontos >= totem['custo']:
-                st.session_state.ultima_compra = time.time()
-                st.session_state.pontos -= totem['custo']
-                st.session_state.totem_equipado = totem
-                atualizar_poder_clique()
-                st.session_state.pontos_leaderboard_cache = st.session_state.pontos
-                salvar_progresso_atual()
-                st.success(f"Equipado: {totem['nome']}!")
-                time.sleep(0.5)
-                st.rerun()
+# Renderiza a loja de forma expansível apenas se estiver ativa
+if st.session_state.exibir_loja_totens:
+    st.subheader("🛒 Loja de Totens Místicos")
+    tempo_restante_segundos = 300 - (int(time.time()) % 300)
+    st.caption(f"⏳ Os itens da loja mudam globalmente em: **{int(tempo_restante_segundos/60)}m {tempo_restante_segundos%60}s**")
+
+    totens_da_rodada = obter_totens_da_rodada()
+    col_tot1, col_tot2, col_tot3 = st.columns(3)
+    colunas_totens = [col_tot1, col_tot2, col_tot3]
+
+    for idx, totem in enumerate(totens_da_rodada):
+        with colunas_totens[idx]:
+            st.markdown(f"##### {totem['nome']}")
+            st.write(f"⭐ **Raridade:** {totem['raridade']}")
+            st.write(f"⚔️ **Bônus:** {totem['multiplicador']}x Crítico")
+            st.write(f"💰 **Custo:** {totem['custo']:,} Pts")
+            
+            btn_desativado = st.session_state.pontos < totem['custo'] or loja_em_cooldown
+            if st.button(f"Comprar Totem", key=f"btn_buy_totem_{idx}", disabled=btn_desativado, use_container_width=True):
+                if st.session_state.pontos >= totem['custo']:
+                    st.session_state.ultima_compra = time.time()
+                    st.session_state.pontos -= totem['custo']
+                    st.session_state.totem_equipado = totem
+                    atualizar_poder_clique()
+                    st.session_state.pontos_leaderboard_cache = st.session_state.pontos
+                    salvar_progresso_atual()
+                    st.success(f"Equipado: {totem['nome']}!")
+                    time.sleep(0.5)
+                    st.rerun()
+
+    if st.button("❌ Fechar Loja", key="btn_fechar_totens", use_container_width=True):
+        st.session_state.exibir_loja_totens = False
+        st.rerun()
 
 st.markdown("---")
 
