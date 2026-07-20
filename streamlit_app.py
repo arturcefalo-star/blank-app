@@ -8,7 +8,7 @@ from streamlit_autorefresh import st_autorefresh
 import streamlit.components.v1 as components
 
 # Configuração da página precisa ser a primeira linha Streamlit
-st.set_page_config(page_title="Clicker Game Pro", layout="centered")
+st.set_page_config(page_title="Clicker Game", layout="centered")
 
 # =====================================================================
 # ⚙️ EDITE AQUI OS NOMES E BÔNUS BASE DOS PETS DO MUNDO 2 (LOGOS 7, 8 E 9)
