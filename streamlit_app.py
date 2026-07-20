@@ -286,11 +286,13 @@ if not st.session_state.logado:
                 st.error("Usuário ou senha incorretos.")
 
     with aba_salvas:
-        st.subheader("Entrar com Conta já Criada neste Navegador")
+        st.subheader("Entrar com Conta já Criada no Servidor")
         
-        if contas_locais:
-            opcoes_contas = [dados["usuario"] for dados in contas_locais.values()]
-            conta_selecionada = st.selectbox("Escolha uma de suas contas salvas:", opcoes_contas)
+        todos_usuarios_server = carregar_todos_usuarios()
+        
+        if todos_usuarios_server:
+            opcoes_contas = [dados["nome_exibicao"] for dados in todos_usuarios_server.values()]
+            conta_selecionada = st.selectbox("Escolha uma das contas registradas:", opcoes_contas)
             key_selecionada = conta_selecionada.lower()
             
             st.markdown(f"Para acessar **{conta_selecionada}**, confirme a senha de acesso:")
@@ -299,51 +301,46 @@ if not st.session_state.logado:
             col_entrar, col_remover = st.columns([2, 1])
             
             if col_entrar.button("Confirmar e Entrar", type="primary", use_container_width=True):
-                senha_salva = contas_locais[key_selecionada]["senha"]
+                senha_salva = todos_usuarios_server[key_selecionada]["senha"]
                 
                 if senha_confirmacao == senha_salva:
-                    usuarios = carregar_todos_usuarios()
+                    dados = todos_usuarios_server[key_selecionada]["dados"]
+                    st.session_state.pontos = dados.get("pontos", 0)
+                    st.session_state.poder_base = dados.get("poder_base", 1)
+                    st.session_state.pontos_por_segundo = dados.get("pontos_por_segundo", 0)
+                    st.session_state.pet_slot_1 = dados.get("pet_slot_1", None)
+                    st.session_state.pet_slot_2 = dados.get("pet_slot_2", None)
+                    st.session_state.pet_slot_m2_1 = dados.get("pet_slot_m2_1", None)
+                    st.session_state.pet_slot_m2_2 = dados.get("pet_slot_m2_2", None)
+                    st.session_state.ultimo_tick = dados.get("ultimo_tick", time.time())
+                    st.session_state.mundo_2_desbloqueado = dados.get("mundo_2_desbloqueado", False)
+                    st.session_state.mundo_atual = dados.get("mundo_atual", 1)
+                    st.session_state.titulo = dados.get("titulo", "")
+                    st.session_state.pontos_leaderboard_cache = dados.get("pontos", 0)
                     
-                    # Restauração automática contra reinicialização do Servidor
-                    if key_selecionada not in usuarios:
-                        usuarios[key_selecionada] = contas_locais[key_selecionada]["dados_completos"]
-                        salvar_todos_usuarios(usuarios)
-                        
-                    if key_selecionada in usuarios and usuarios[key_selecionada]["senha"] == senha_salva:
-                        dados = usuarios[key_selecionada]["dados"]
-                        st.session_state.pontos = dados.get("pontos", 0)
-                        st.session_state.poder_base = dados.get("poder_base", 1)
-                        st.session_state.pontos_por_segundo = dados.get("pontos_por_segundo", 0)
-                        st.session_state.pet_slot_1 = dados.get("pet_slot_1", None)
-                        st.session_state.pet_slot_2 = dados.get("pet_slot_2", None)
-                        st.session_state.pet_slot_m2_1 = dados.get("pet_slot_m2_1", None)
-                        st.session_state.pet_slot_m2_2 = dados.get("pet_slot_m2_2", None)
-                        st.session_state.ultimo_tick = dados.get("ultimo_tick", time.time())
-                        st.session_state.mundo_2_desbloqueado = dados.get("mundo_2_desbloqueado", False)
-                        st.session_state.mundo_atual = dados.get("mundo_atual", 1)
-                        st.session_state.titulo = dados.get("titulo", "")
-                        st.session_state.pontos_leaderboard_cache = dados.get("pontos", 0)
-                        
-                        st.session_state.nome_usuario = usuarios[key_selecionada]["nome_exibicao"]
-                        st.session_state.logado = True
-                        st.session_state["tmp_logged_password"] = senha_salva
-                        
-                        usuarios[key_selecionada]["ultimo_login"] = time.strftime("%Y-%m-%d %H:%M:%S")
-                        salvar_todos_usuarios(usuarios)
-                        
-                        st.success(f"Olá, {st.session_state.nome_usuario}!")
-                        time.sleep(0.5)
-                        st.rerun()
+                    st.session_state.nome_usuario = todos_usuarios_server[key_selecionada]["nome_exibicao"]
+                    st.session_state.logado = True
+                    st.session_state["tmp_logged_password"] = senha_salva
+                    
+                    todos_usuarios_server[key_selecionada]["ultimo_login"] = time.strftime("%Y-%m-%d %H:%M:%S")
+                    salvar_todos_usuarios(todos_usuarios_server)
+                    
+                    st.success(f"Olá, {st.session_state.nome_usuario}!")
+                    time.sleep(0.5)
+                    st.rerun()
                 else:
-                    st.error("Senha incorreta para esta conta salva!")
+                    st.error("Senha incorreta para a conta selecionada!")
                     
             if col_remover.button("Remover da Lista ❌", use_container_width=True):
+                del todos_usuarios_server[key_selecionada]
+                salvar_todos_usuarios(todos_usuarios_server)
+                remover_jogador_leaderboard(key_selecionada)
                 st.components.v1.html(f"""<script>window.parent.postMessage({{type: "REMOVE_ACCOUNT", user: "{key_selecionada}"}}, "*");</script>""", height=0, width=0)
-                st.toast("Conta removida do navegador!")
+                st.toast("Conta deletada do servidor!")
                 time.sleep(0.5)
                 st.rerun()
         else:
-            st.info("Nenhuma conta memorizada de forma permanente neste navegador ainda. Faça login ou crie uma conta.")
+            st.info("Nenhuma conta cadastrada no servidor ainda. Crie uma nova conta na aba ao lado.")
                 
     with aba_registro:
         st.subheader("Crie sua Conta")
@@ -389,7 +386,7 @@ if not st.session_state.logado:
                 </script>
                 """, height=0, width=0)
                 
-                st.success("Conta criada com sucesso e guardada no navegador! Vá em 'Entrar na Conta'.")
+                st.success("Conta criada com sucesso e guardada no servidor! Vá em 'Contas Já Criadas 💾' ou faça o login.")
                 time.sleep(0.5)
                 st.rerun()
                 
@@ -868,7 +865,7 @@ with st.sidebar:
 
     st.markdown("---")
 
-    # ⭐ PAINEL DE APOIADOR
+    # --- PAINEL DE APOIADOR ---
     st.header("⚙️ Painel de Apoiador")
     acesso_apoiador = tem_titulo("APD") or tem_titulo("ADM") or tem_titulo("DEV")
     exibir_painel_apoiador = False
