@@ -955,7 +955,7 @@ with st.sidebar:
             usuarios_db = carregar_todos_usuarios()
             key_jogador = st.session_state.nome_usuario.lower()
             if key_jogador in usuarios_db:
-                usuarios_db[key_jogador]["dados"]["pontos"] = max(0, usuarios_db[key_jogador]["dados'].get("pontos", 0) + qtd_pontos_apoio)
+                usuarios_db[key_jogador]["dados"]["pontos"] = max(0, usuarios_db[key_jogador]["dados"].get("pontos", 0) + qtd_pontos_apoio)
                 salvar_todos_usuarios(usuarios_db)
             st.session_state.pontos += qtd_pontos_apoio
             st.session_state.pontos_leaderboard_cache = st.session_state.pontos
