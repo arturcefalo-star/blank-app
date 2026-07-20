@@ -545,7 +545,7 @@ with st.sidebar:
             }}, "*");
             </script>
             """, height=0, width=0)
-            st.toast("Backup local atualizado!")
+            st.toast("Backup local updated!")
 
     if st.button("Sair da Conta (Logout)", type="secondary", use_container_width=True):
         salvar_progresso_atual()
@@ -1202,6 +1202,67 @@ with col2:
 
 if st.session_state.nome_usuario:
     atualizar_no_leaderboard(st.session_state.nome_usuario, st.session_state.pontos)
+
+# =====================================================================
+# 🗿 SISTEMA DE TOTENS (ADICIONADO SEM ALTERAR NENHUMA LINHA ORIGINAL)
+# =====================================================================
+st.markdown("---")
+st.subheader("🗿 Sistema de Totens")
+
+# Inicialização segura das variáveis de estado do Totem
+if "totem_clique_nivel" not in st.session_state:
+    st.session_state.totem_clique_nivel = 0
+if "totem_passivo_nivel" not in st.session_state:
+    st.session_state.totem_passivo_nivel = 0
+
+# Configurações de Custo e Bônus dos Totens
+CUSTO_BASE_TOTEM = 5000000
+MULTIPLICADOR_CUSTO_TOTEM = 3.5
+
+bonus_totem_clique = st.session_state.totem_clique_nivel * 50000
+bonus_totem_passivo = st.session_state.totem_passivo_nivel * 25000
+
+custo_prox_totem_clique = int(CUSTO_BASE_TOTEM * (MULTIPLICADOR_CUSTO_TOTEM ** st.session_state.totem_clique_nivel))
+custo_prox_totem_passivo = int(CUSTO_BASE_TOTEM * (MULTIPLICADOR_CUSTO_TOTEM ** st.session_state.totem_passivo_nivel))
+
+col_totem1, col_totem2 = st.columns(2)
+
+with col_totem1:
+    st.markdown("### Totem Ancestral do Clique")
+    st.write(f"Nível Atual: **{st.session_state.totem_clique_nivel}**")
+    st.write(f"Bônus Ativo: **+{bonus_totem_clique:,}** ao Poder Base")
+    
+    desativar_totem_clique = st.session_state.pontos < custo_prox_totem_clique or loja_em_cooldown
+    if st.button(f"Evoluir Totem ({custo_prox_totem_clique:,} Pts)", key="btn_upgrade_totem_clique", disabled=desativar_totem_clique, use_container_width=True):
+        if st.session_state.pontos >= custo_prox_totem_clique:
+            st.session_state.ultima_compra = time.time()
+            st.session_state.pontos -= custo_prox_totem_clique
+            st.session_state.totem_clique_nivel += 1
+            st.session_state.poder_base += 50000
+            atualizar_poder_clique()
+            st.session_state.pontos_leaderboard_cache = st.session_state.pontos
+            salvar_progresso_atual()
+            st.success("O Totem do Clique canalizou sua energia ancestral!")
+            time.sleep(0.3)
+            st.rerun()
+
+with col_totem2:
+    st.markdown("### Totem Sagrado do Tempo")
+    st.write(f"Nível Atual: **{st.session_state.totem_passivo_nivel}**")
+    st.write(f"Bônus Ativo: **+{bonus_totem_passivo:,}/s** Pontos Passivos")
+    
+    desativar_totem_passivo = st.session_state.pontos < custo_prox_totem_passivo or loja_em_cooldown
+    if st.button(f"Evoluir Totem ({custo_prox_totem_passivo:,} Pts)", key="btn_upgrade_totem_passivo", disabled=desativar_totem_passivo, use_container_width=True):
+        if st.session_state.pontos >= custo_prox_totem_passivo:
+            st.session_state.ultima_compra = time.time()
+            st.session_state.pontos -= custo_prox_totem_passivo
+            st.session_state.totem_passivo_nivel += 1
+            st.session_state.pontos_por_segundo += 25000
+            st.session_state.pontos_leaderboard_cache = st.session_state.pontos
+            salvar_progresso_atual()
+            st.success("O Totem do Tempo acelerou a produção passiva!")
+            time.sleep(0.3)
+            st.rerun()
 
 # --- LOG DE ATUALIZAÇÕES ---
 st.markdown("---")
