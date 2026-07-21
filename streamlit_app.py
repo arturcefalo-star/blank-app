@@ -125,6 +125,8 @@ def carregar_todos_usuarios():
 def salvar_todos_usuarios(usuarios):
   with open(ACCOUNTS_FILE, "w", encoding="utf-8") as f:
     json.dump(usuarios, f, ensure_ascii=False, indent=4)
+    f.flush()
+    os.fsync(f.fileno())
 
 
 def tem_titulo(titulo_necessario):
@@ -201,6 +203,8 @@ def carregar_leaderboard():
 def salvar_leaderboard_completo(lista):
   with open(LEADERBOARD_FILE, "w", encoding="utf-8") as f:
     json.dump(lista, f, ensure_ascii=False, indent=4)
+    f.flush()
+    os.fsync(f.fileno())
 
 
 def atualizar_no_leaderboard(nome, pontos):
@@ -260,6 +264,8 @@ def carregar_configuracoes_globais():
 def salvar_configuracoes_globais(dados):
   with open(AVISOS_FILE, "w", encoding="utf-8") as f:
     json.dump(dados, f, ensure_ascii=False, indent=4)
+    f.flush()
+    os.fsync(f.fileno())
 
 
 def resetar_estados_jogador_local():
@@ -869,45 +875,51 @@ with st.sidebar:
         )
 
         if col_dev_pts.button("Pontos", key=f"dev_pts_{key_jogador}_{i}"):
-          usuarios_db_dev[key_jogador]["dados"]["pontos"] = max(
+          novos_pontos = max(
               0,
               usuarios_db_dev[key_jogador]["dados"].get("pontos", 0)
               + qtd_alteracao,
           )
+          usuarios_db_dev[key_jogador]["dados"]["pontos"] = novos_pontos
           salvar_todos_usuarios(usuarios_db_dev)
+
           if key_jogador == st.session_state.nome_usuario.lower():
-            st.session_state.pontos += qtd_alteracao
-            st.session_state.pontos_leaderboard_cache = st.session_state.pontos
-          atualizar_no_leaderboard(
-              name_jogador, usuarios_db_dev[key_jogador]["dados"]["pontos"]
-          )
+            st.session_state.pontos = novos_pontos
+            st.session_state.pontos_leaderboard_cache = novos_pontos
+
+          atualizar_no_leaderboard(name_jogador, novos_pontos)
+          st.success(f"Pontos de {name_jogador} atualizados!")
           st.rerun()
 
         if col_dev_clk.button("Poder/C", key=f"dev_clk_{key_jogador}_{i}"):
-          usuarios_db_dev[key_jogador]["dados"]["poder_base"] = max(
+          novo_poder = max(
               1,
               usuarios_db_dev[key_jogador]["dados"].get("poder_base", 1)
               + qtd_alteracao,
           )
+          usuarios_db_dev[key_jogador]["dados"]["poder_base"] = novo_poder
           salvar_todos_usuarios(usuarios_db_dev)
+
           if key_jogador == st.session_state.nome_usuario.lower():
-            st.session_state.poder_base += qtd_alteracao
+            st.session_state.poder_base = novo_poder
             atualizar_poder_clique()
-          st.success("Poder de clique updated!")
+
+          st.success(f"Poder base de {name_jogador} atualizado!")
           st.rerun()
 
         if col_dev_pps.button("Pontos/s", key=f"dev_pps_{key_jogador}_{i}"):
-          usuarios_db_dev[key_jogador]["dados"]["pontos_por_segundo"] = max(
+          novo_pps = max(
               0,
-              usuarios_db_dev[key_jogador]["dados"].get(
-                  "pontos_por_segundo", 0
-              )
+              usuarios_db_dev[key_jogador]["dados"].get("pontos_por_segundo", 0)
               + qtd_alteracao,
           )
+          usuarios_db_dev[key_jogador]["dados"]["pontos_por_segundo"] = novo_pps
           salvar_todos_usuarios(usuarios_db_dev)
+
           if key_jogador == st.session_state.nome_usuario.lower():
-            st.session_state.pontos_por_segundo += qtd_alteracao
-          st.success("Pontos/Seg updated!")
+            st.session_state.pontos_por_segundo = novo_pps
+
+          st.success(f"Pontos/Seg de {name_jogador} atualizados!")
           st.rerun()
 
         with col_dev_t.popover("Title", use_container_width=True):
@@ -1747,7 +1759,7 @@ if st.session_state.mundo_atual == 2:
       {"qtd": 500000, "custo": 120000000},
       {"qtd": 1000000, "custo": 400000000},
       {"qtd": 2000000, "custo": 1000000000},
-      {"qtd": 5000000, "custo": 3000000000},
+      {"qtd": 500000, "custo": 3000000000},
       {"qtd": 10000000, "custo": 7500000000},
       {"qtd": 20000000, "custo": 15000000000},
       {"qtd": 50000000, "custo": 40000000000},
