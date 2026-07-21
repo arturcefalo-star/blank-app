@@ -907,6 +907,7 @@ with st.sidebar:
           st.success(f"Poder base de {name_jogador} atualizado!")
           st.rerun()
 
+        # CORREÇÃO AQUI: Chave alterada para f"dev_pps_{key_jogador}_{i}"
         if col_dev_pps.button("Pontos/s", key=f"dev_pps_{key_jogador}_{i}"):
           novo_pps = max(
               0,
