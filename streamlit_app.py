@@ -1,4 +1,3 @@
-
 import streamlit as st
 import time
 import random
@@ -18,7 +17,7 @@ st.markdown("""
         display: none !important;
     }
     </style>
-""", unsafe_html=True)
+""", unsafe_allow_html=True)
 
 # =====================================================================
 # ⚙️ EDITE AQUI OS NOMES E BÔNUS BASE DOS PETS DO MUNDO 2 (LOGOS 7, 8 E 9)
@@ -886,17 +885,13 @@ with st.sidebar:
         status_sorte = f"ATIVADO ({mult_sorte}X)" if mult_sorte > 1 else "DESATIVADO"
         st.write(f"Multiplicador de Sorte Rara: **{status_sorte}**")
         
-        col_s2x, col_s3x, col_s4x, col_s5x = st.columns(4)
+        col_s2x, col_s3x, col_s5x = st.columns(3)
         if col_s2x.button("Sorte 2X", key="btn_sorte2", use_container_width=True, disabled=(mult_sorte == 2)):
             config_globais["multiplicador_sorte"] = 2
             salvar_configuracoes_globais(config_globais)
             st.rerun()
         if col_s3x.button("Sorte 3X", key="btn_sorte3", use_container_width=True, disabled=(mult_sorte == 3)):
             config_globais["multiplicador_sorte"] = 3
-            salvar_configuracoes_globais(config_globais)
-            st.rerun()
-        if col_s4x.button("Sorte 4X", key="btn_sorte4", use_container_width=True, disabled=(mult_sorte == 4)):
-            config_globais["multiplicador_sorte"] = 4
             salvar_configuracoes_globais(config_globais)
             st.rerun()
         if col_s5x.button("Sorte 5X", key="btn_sorte5", use_container_width=True, disabled=(mult_sorte == 5)):
@@ -1155,7 +1150,7 @@ else:
 
 st.markdown("---")
 
-# --- 🌟 LOJA DE TOTENS (ATUALIZAÇÃO EM TEMPO REAL AJUSTADA) ---
+# --- 🌟 LOJA DE TOTENS ---
 if "exibir_loja_totens" not in st.session_state:
     st.session_state.exibir_loja_totens = False
 
@@ -1163,9 +1158,7 @@ if st.button("🛒 Abrir Loja de Totens Místicos", use_container_width=True):
     st.session_state.exibir_loja_totens = not st.session_state.exibir_loja_totens
     st.rerun()
 
-@st.fragment
-def renderizar_loja_totens():
-    st_autorefresh(interval=1000, key="totem_shop_timer")
+if st.session_state.exibir_loja_totens:
     st.subheader("🛒 Loja de Totens Místicos")
     tempo_restante_segundos = 300 - (int(time.time()) % 300)
     st.caption(f"⏳ Os itens da loja mudam em: **{int(tempo_restante_segundos/60)}m {tempo_restante_segundos%60}s**")
@@ -1193,9 +1186,6 @@ def renderizar_loja_totens():
     if st.button("❌ Fechar Loja", key="btn_fechar_totens", use_container_width=True):
         st.session_state.exibir_loja_totens = False
         st.rerun()
-
-if st.session_state.exibir_loja_totens:
-    renderizar_loja_totens()
 
 st.markdown("---")
 
