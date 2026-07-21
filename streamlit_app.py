@@ -203,7 +203,6 @@ def injetar_js_localstorage():
         let contas = localStorage.getItem("clicker_saved_accounts") || "{}";
         const streamlitInput = parentDoc.querySelector('input[aria-label="bridge_storage_input"]');
         if (streamlitInput && streamlitInput.value !== contas) {
-            // Só atualiza se o valor vindo do localStorage for válido para evitar inputs fantasmas
             if (contas !== "{}") {
                 streamlitInput.value = contas;
                 streamlitInput.dispatchEvent(new Event('input', { bubbles: true }));
@@ -230,7 +229,6 @@ def injetar_js_localstorage():
         }
     });
 
-    // Força execução rápida inicial e repetições curtas
     setTimeout(sincronizar, 100);
     setInterval(sincronizar, 1000);
     </script>
@@ -244,11 +242,9 @@ if "logado" not in st.session_state:
 if "nome_usuario" not in st.session_state:
     st.session_state.nome_usuario = ""
 
-# Input oculto de ponte
 bridge_data = st.text_input("bridge_storage_input", key="bridge_storage_input", label_visibility="collapsed")
 injetar_js_localstorage()
 
-# Restaura as contas locais do LocalStorage e injeta de volta para o Servidor se necessário
 try:
     contas_locais = json.loads(bridge_data) if bridge_data else {}
     if contas_locais:
@@ -263,7 +259,6 @@ try:
 except Exception:
     contas_locais = {}
 
-# Re-sincroniza o banco local do servidor com o que o jogador salvou no navegador
 todos_usuarios_server = carregar_todos_usuarios()
 for k, v in contas_locais.items():
     if k not in todos_usuarios_server:
@@ -272,7 +267,7 @@ salvar_todos_usuarios(todos_usuarios_server)
 
 
 # =====================================================================
-# 🔐 TELA DE LOGIN / REGISTRO COM CAPTURA PERMANENTE DO NAVEGADOR
+# 🔐 TELA DE LOGIN / REGISTRO
 # =====================================================================
 if not st.session_state.logado:
     st.title("Clicker Game - Login")
@@ -309,7 +304,6 @@ if not st.session_state.logado:
                 
                 st.session_state["tmp_logged_password"] = log_pass
                 
-                # Garante que ao logar com sucesso ela se auto-salve no LocalStorage local do navegador também
                 st.components.v1.html(f"""
                 <script>
                 window.parent.postMessage({{
@@ -417,7 +411,6 @@ if not st.session_state.logado:
                 usuarios[user_key] = nova_conta
                 salvar_todos_usuarios(usuarios)
                 
-                # Registra imediatamente no navegador para evitar perdas
                 st.components.v1.html(f"""
                 <script>
                 window.parent.postMessage({{
@@ -429,14 +422,14 @@ if not st.session_state.logado:
                 </script>
                 """, height=0, width=0)
                 
-                st.success("Conta criada com sucesso e guardada permanentemente!")
+                st.success("Conta criada com sucesso!")
                 time.sleep(0.5)
                 st.rerun()
                 
     st.stop()
 
 # =====================================================================
-# 🎮 INTERFACE E LOGICA PRINCIPAL DO JOGO (SEGUE O RESTANTE DO SEU CÓDIGO)
+# 🎮 INTERFACE E LÓGICA PRINCIPAL DO JOGO
 # =====================================================================
 
 if "poder_clique" not in st.session_state:
@@ -466,14 +459,10 @@ aviso_sistema = config_globais.get("mensagem", "")
 mult_evento = config_globais.get("multiplicador_evento", 1) 
 mult_sorte = config_globais.get("multiplicador_sorte", 1)
 
-# --- SISTEMA DE GERAÇÃO ROTATIVA DA LOJA DE TOTENS ---
 def obter_totens_da_rodada():
-    minuto_atual = int(time.time() / 300) # Muda a cada 5 minutes (300 segundos)
+    minuto_atual = int(time.time() / 300) 
     random.seed(minuto_atual)
     
-    chances = [t["chance"] for t in TOTENS_DISPONIVEIS]
-    
-    # Sorteia 3 totens distintos baseados no seed do período
     totens_escolhidos = []
     pool_copia = list(TOTENS_DISPONIVEIS)
     
@@ -485,7 +474,7 @@ def obter_totens_da_rodada():
         totens_escolhidos.append(sorteado)
         pool_copia.remove(sorteado)
         
-    random.seed() # Reseta o seed global para não quebrar a aleatoriedade dos ovos
+    random.seed() 
     return totens_escolhidos
 
 def calcular_bonus_pet(pet):
@@ -502,7 +491,6 @@ def atualizar_poder_clique():
     
     poder_calculado = st.session_state.poder_base + bonus_total
     
-    # Aplica multiplicador do totem se houver um equipado
     if st.session_state.totem_equipado:
         poder_calculado = int(poder_calculado * st.session_state.totem_equipado["multiplicador"])
         
@@ -519,11 +507,11 @@ def calcular_chances_ovo(c1, c2, c3_base):
 
 atualizar_poder_clique()
 
+# --- SISTEMA DE CLIQUE E AUTO-CLICKER (REESTRUTURADO) ---
 @st.fragment
-def anti_lag_ticker():
-    placeholder = st.empty()
-    with placeholder:
-        st_autorefresh(interval=3000, key="anti_lag_silent_loop")
+def renderizar_area_clique():
+    # Atualizador automático de 1 segundo (Soma o Auto-click em tempo real)
+    st_autorefresh(interval=1000, key="auto_click_timer")
     
     agora = time.time()
     tempo_passado = agora - st.session_state.ultimo_tick
@@ -534,9 +522,6 @@ def anti_lag_ticker():
         st.session_state.pontos_leaderboard_cache = st.session_state.pontos
         salvar_progresso_atual()
 
-anti_lag_ticker()
-
-def renderizar_area_clique():
     st.metric(label="Pontos Atuais", value=f"{st.session_state.pontos:,}")
     
     if st.session_state.totem_equipado:
@@ -573,13 +558,12 @@ if st.session_state.nome_usuario != "" and os.path.exists(LEADERBOARD_FILE):
 
 loja_em_cooldown = (time.time() - st.session_state.ultima_compra) < 0.6
 
-# --- BARRA LATERAL: LOGOUT, PAINÉIS DE CARGOS ---
+# --- BARRA LATERAL ---
 with st.sidebar:
     prefixo_exibicao = f"[{st.session_state.titulo}] " if st.session_state.titulo else ""
     st.write(f"Conectado como: **{prefixo_exibicao}{st.session_state.nome_usuario}**")
     
     st.caption("✓ Conta sincronizada no navegador.")
-    # Força salvamento manual se quiser garantir o backup imediato
     if st.button("🔄 Forçar Redundância Manual", use_container_width=True):
         usuarios = carregar_todos_usuarios()
         key_user = st.session_state.nome_usuario.lower()
@@ -644,7 +628,7 @@ with st.sidebar:
                 
                 col_dev_pts, col_dev_clk, col_dev_pps, col_dev_t, col_dev_ban = st.columns([1, 1, 1, 1.2, 0.8])
                 
-                if col_dev_pts.button("Pontos", key=f"dev_pts_{key_jogador}_{i}", help="Injeta pontos"):
+                if col_dev_pts.button("Pontos", key=f"dev_pts_{key_jogador}_{i}"):
                     if key_jogador in usuarios_db_dev:
                         usuarios_db_dev[key_jogador]["dados"]["pontos"] = max(0, usuarios_db_dev[key_jogador]["dados"].get("pontos", 0) + qtd_alteracao)
                         salvar_todos_usuarios(usuarios_db_dev)
@@ -658,7 +642,7 @@ with st.sidebar:
                     salvar_leaderboard_completo(placar_completo_dev)
                     st.rerun()
                     
-                if col_dev_clk.button("Poder/C", key=f"dev_clk_{key_jogador}_{i}", help="Injeta Poder Base de clique"):
+                if col_dev_clk.button("Poder/C", key=f"dev_clk_{key_jogador}_{i}"):
                     if key_jogador in usuarios_db_dev:
                         usuarios_db_dev[key_jogador]["dados"]["poder_base"] = max(1, usuarios_db_dev[key_jogador]["dados"].get("poder_base", 1) + qtd_alteracao)
                         salvar_todos_usuarios(usuarios_db_dev)
@@ -668,7 +652,7 @@ with st.sidebar:
                     st.success("Poder de clique updated!")
                     st.rerun()
 
-                if col_dev_pps.button("Pontos/s", key=f"dev_pps_{key_jogador}_{i}", help="Injetar pontos por segundo"):
+                if col_dev_pps.button("Pontos/s", key=f"dev_pps_{key_jogador}_{i}"):
                     if key_jogador in usuarios_db_dev:
                         usuarios_db_dev[key_jogador]["dados"]["pontos_por_segundo"] = max(0, usuarios_db_dev[key_jogador]["dados"].get("pontos_por_segundo", 0) + qtd_alteracao)
                         salvar_todos_usuarios(usuarios_db_dev)
@@ -695,7 +679,7 @@ with st.sidebar:
                             time.sleep(0.3)
                             st.rerun()
 
-                if col_dev_ban.button("Ban", key=f"dev_ban_{key_jogador}_{i}", help="Banimento permanente"):
+                if col_dev_ban.button("Ban", key=f"dev_ban_{key_jogador}_{i}"):
                     if key_jogador in usuarios_db_dev:
                         del usuarios_db_dev[key_jogador]
                         salvar_todos_usuarios(usuarios_db_dev)
@@ -705,8 +689,6 @@ with st.sidebar:
                         resetar_estados_jogador_local()
                     st.rerun()
                 st.markdown("---")
-        else:
-            st.info("Placar vazio.")
 
         st.subheader("Inspecionar Jogador")
         usuarios_db_inspect = carregar_todos_usuarios()
@@ -750,8 +732,6 @@ with st.sidebar:
                 st.markdown(" **Totem Equipado:**")
                 tot_player = dados_player.get("totem_equipado")
                 st.write(f"{tot_player['nome']} ({tot_player['multiplicador']}x)" if tot_player else "Nenhum Totem Equipado")
-        else:
-            st.info("Nenhuma conta cadastrada no banco de dados ainda.")
         
     st.markdown("---")
     
@@ -828,9 +808,7 @@ with st.sidebar:
                             break
                     salvar_leaderboard_completo(placar_completo)
                     st.rerun()
-        else:
-            st.info("Nenhum jogador registrado no placar ainda.")
-            
+
         st.markdown("---")
         st.subheader("Mensagem Global")
         nova_msg = st.text_input("Texto Global:", value=aviso_sistema, placeholder="Digite o aviso geral aqui...", key="admin_msg_field")
@@ -858,69 +836,23 @@ with st.sidebar:
         if col_ev2x.button("Ativar 2X", key="btn_ev2", use_container_width=True, disabled=(mult_evento == 2)):
             config_globais["multiplicador_evento"] = 2
             salvar_configuracoes_globais(config_globais)
-            st.success("Evento 2X Ativado!")
-            time.sleep(0.4)
             st.rerun()
         if col_ev3x.button("Ativar 3X", key="btn_ev3", use_container_width=True, disabled=(mult_evento == 3)):
             config_globais["multiplicador_evento"] = 3
             salvar_configuracoes_globais(config_globais)
-            st.success("Evento 3X Ativado!")
-            time.sleep(0.4)
             st.rerun()
         if col_ev4x.button("Ativar 4X", key="btn_ev4", use_container_width=True, disabled=(mult_evento == 4)):
             config_globais["multiplicador_evento"] = 4
             salvar_configuracoes_globais(config_globais)
-            st.success("Evento 4X Ativado!")
-            time.sleep(0.4)
             st.rerun()
         if col_ev5x.button("Ativar 5X", key="btn_ev5", use_container_width=True, disabled=(mult_evento == 5)):
             config_globais["multiplicador_evento"] = 5
             salvar_configuracoes_globais(config_globais)
-            st.success("Evento 5X Ativado!")
-            time.sleep(0.4)
             st.rerun()
         
         if st.button("Desativar", type="secondary", use_container_width=True, disabled=(mult_evento == 1), key="btn_desativar_evento"):
             config_globais["multiplicador_evento"] = 1
             salvar_configuracoes_globais(config_globais)
-            st.warning("Multiplicador do Evento Disativado!")
-            time.sleep(0.4)
-            st.rerun()
-
-        status_sorte = f"ATIVADO ({mult_sorte}X)" if mult_sorte > 1 else "DESATIVADO"
-        st.write(f"Multiplicador de Sorte: **{status_sorte}**")
-
-        col_st2x, col_st3x, col_st4x, col_st5x = st.columns(4)
-        if col_st2x.button("Sorte 2X", key="btn_st2", use_container_width=True, disabled=(mult_sorte == 2)):
-            config_globais["multiplicador_sorte"] = 2
-            salvar_configuracoes_globais(config_globais)
-            st.success("Sorte de Drop 2X Ativada!")
-            time.sleep(0.4)
-            st.rerun()
-        if col_st3x.button("Sorte 3X", key="btn_st3", use_container_width=True, disabled=(mult_sorte == 3)):
-            config_globais["multiplicador_sorte"] = 3
-            salvar_configuracoes_globais(config_globais)
-            st.success("Sorte de Drop 3X Ativada!")
-            time.sleep(0.4)
-            st.rerun()
-        if col_st4x.button("Sorte 4X", key="btn_st4", use_container_width=True, disabled=(mult_sorte == 4)):
-            config_globais["multiplicador_sorte"] = 4
-            salvar_configuracoes_globais(config_globais)
-            st.success("Sorte de Drop 4X Ativada!")
-            time.sleep(0.4)
-            st.rerun()
-        if col_st5x.button("Sorte 5X", key="btn_st5", use_container_width=True, disabled=(mult_sorte == 5)):
-            config_globais["multiplicador_sorte"] = 5
-            salvar_configuracoes_globais(config_globais)
-            st.success("Sorte de Drop 5X Ativada!")
-            time.sleep(0.4)
-            st.rerun()
-
-        if st.button("Desativar", type="secondary", use_container_width=True, disabled=(mult_sorte == 1), key="btn_desativar_sorte"):
-            config_globais["multiplicador_sorte"] = 1
-            salvar_configuracoes_globais(config_globais)
-            st.warning("Multiplicador de Sorte Disativado!")
-            time.sleep(0.4)
             st.rerun()
 
     st.markdown("---")
@@ -947,7 +879,6 @@ with st.sidebar:
         st.subheader("Add/Rem seus pontos")
         qtd_pontos_apoio = st.number_input("Quantidade de pontos para Add/Rem:", min_value=1, value=50000, step=1000, key="qtd_pontos_apoio")
         
-        st.subheader("Seu saldo:")
         col_apoio1, col_apoio2, col_apoio3 = st.columns([2, 1, 1])
         col_apoio1.write(f"**Você {st.session_state.nome_usuario}**: {st.session_state.pontos:,} pts")
         
@@ -973,17 +904,17 @@ with st.sidebar:
             atualizar_no_leaderboard(st.session_state.nome_usuario, st.session_state.pontos)
             st.rerun()
 
-# --- CONTROLE DE VIAGEM ENTRE MUNDOS ---
+# --- CONTROLE DE MUNDOS ---
 st.title("Clicker Game")
 
 if aviso_sistema.strip() != "":
     st.info(f" **Mensagem do ADM:** {aviso_sistema}")
 
 if mult_evento > 1:
-    st.warning(f" **EVENTO GLOBAL ATIVO:** Cliques concedendo o **{mult_evento}X** de Pontos em todos os mundos!")
+    st.warning(f" **EVENTO GLOBAL ATIVO:** Cliques concedendo **{mult_evento}X** de Pontos!")
 
 if mult_sorte > 1:
-    st.success(f" **EVENTO DE SORTE ATIVO:** Chances de ganhar Pets Raros **{mult_sorte}X**!")
+    st.success(f" **EVENTO DE SORTE ATIVO:** Chances de Pets Raros **{mult_sorte}X**!")
 
 CUSTO_MUNDO_2 = 10000000
 
@@ -996,8 +927,6 @@ if not st.session_state.mundo_2_desbloqueado:
             st.session_state.mundo_2_desbloqueado = True
             st.session_state.mundo_atual = 2
             salvar_progresso_atual()
-            st.success("Indo para o mundo 2...")
-            time.sleep(1)
             st.rerun()
 else:
     if st.session_state.mundo_atual == 1:
@@ -1013,12 +942,11 @@ else:
 
 st.markdown("---")
 
-# --- CONTEÚDO DINÂMICO DOS MUNDOS ---
+# --- CONTEÚDO DOS MUNDOS ---
 if st.session_state.mundo_atual == 2:
     st.subheader("Segundo mundo")
     st.info("2X de multiplicador de mundo")
     
-    st.write("Trilha sonora: on/off")
     try:
         st.audio("musica67.mp3") 
     except Exception:
@@ -1049,9 +977,7 @@ if st.session_state.mundo_atual == 2:
                 )[0]
                 st.session_state.pet_slot_m2_1 = sorteado
                 atualizar_poder_clique()
-                st.session_state.ultima_compra = 0.0  
                 salvar_progresso_atual()
-                time.sleep(0.5) 
                 st.rerun()
 
         if st.session_state.pet_slot_m2_1:
@@ -1083,9 +1009,7 @@ if st.session_state.mundo_atual == 2:
                 )[0]
                 st.session_state.pet_slot_m2_2 = sorteado
                 atualizar_poder_clique()
-                st.session_state.ultima_compra = 0.0  
                 salvar_progresso_atual()
-                time.sleep(0.5) 
                 st.rerun()
 
         if st.session_state.pet_slot_m2_2:
@@ -1097,14 +1021,12 @@ if st.session_state.mundo_atual == 2:
                 st.warning(f"⚠️ Imagem ({pet['arquivo']}) não encontrada.")
             st.caption(f"{pet['nome']} | +{calcular_bonus_pet(pet):,} por clique")
 
-# --- CONTEÚDO MUNDO 1 ---
-if st.session_state.mundo_atual != 2:
+else:
     st.subheader("Primeiro Mundo")
-    st.write("Trilha sonora: on/off")
     try:
         st.audio("musica67.mp3")
     except Exception:
-        st.caption("🎵 Arquivo 'musica67.mp3' não encontrado.")
+        pass
 
     renderizar_area_clique()
     st.markdown("---")
@@ -1132,9 +1054,7 @@ if st.session_state.mundo_atual != 2:
                 )[0]
                 st.session_state.pet_slot_1 = sorteado_ovo1
                 atualizar_poder_clique()
-                st.session_state.ultima_compra = 0.0  
                 salvar_progresso_atual()
-                time.sleep(0.5) 
                 st.rerun()
 
         if st.session_state.pet_slot_1:
@@ -1167,9 +1087,7 @@ if st.session_state.mundo_atual != 2:
                 )[0]
                 st.session_state.pet_slot_2 = sorteado_ovo2
                 atualizar_poder_clique()
-                st.session_state.ultima_compra = 0.0  
                 salvar_progresso_atual()
-                time.sleep(0.5) 
                 st.rerun()
 
         if st.session_state.pet_slot_2:
@@ -1183,20 +1101,18 @@ if st.session_state.mundo_atual != 2:
 
 st.markdown("---")
 
-# --- 🌟 NOVA LOJA DE TOTENS ROTATIVA DE 5 MINUTOS (OCULTA EM BOTÃO) 🌟 ---
+# --- 🌟 LOJA DE TOTENS ---
 if "exibir_loja_totens" not in st.session_state:
     st.session_state.exibir_loja_totens = False
 
-# Botão para alternar a exibição da loja
 if st.button("🛒 Abrir Loja de Totens Místicos", use_container_width=True):
     st.session_state.exibir_loja_totens = not st.session_state.exibir_loja_totens
     st.rerun()
 
-# Renderiza a loja de forma expansível apenas se estiver ativa
 if st.session_state.exibir_loja_totens:
     st.subheader("🛒 Loja de Totens Místicos")
     tempo_restante_segundos = 300 - (int(time.time()) % 300)
-    st.caption(f"⏳ Os itens da loja mudam globalmente em: **{int(tempo_restante_segundos/60)}m {tempo_restante_segundos%60}s**")
+    st.caption(f"⏳ Os itens da loja mudam em: **{int(tempo_restante_segundos/60)}m {tempo_restante_segundos%60}s**")
 
     totens_da_rodada = obter_totens_da_rodada()
     col_tot1, col_tot2, col_tot3 = st.columns(3)
@@ -1216,10 +1132,7 @@ if st.session_state.exibir_loja_totens:
                     st.session_state.pontos -= totem['custo']
                     st.session_state.totem_equipado = totem
                     atualizar_poder_clique()
-                    st.session_state.pontos_leaderboard_cache = st.session_state.pontos
                     salvar_progresso_atual()
-                    st.success(f"Equipado: {totem['nome']}!")
-                    time.sleep(0.5)
                     st.rerun()
 
     if st.button("❌ Fechar Loja", key="btn_fechar_totens", use_container_width=True):
@@ -1275,9 +1188,7 @@ with col1:
                     st.session_state.pontos -= item['custo']
                     st.session_state.poder_base += item['qtd']
                     atualizar_poder_clique()  
-                    st.session_state.pontos_leaderboard_cache = st.session_state.pontos
                     salvar_progresso_atual()
-                    time.sleep(0.1)
                     st.rerun()
 
 with col2:
@@ -1293,9 +1204,7 @@ with col2:
                     st.session_state.ultima_compra = time.time()
                     st.session_state.pontos -= item['custo']
                     st.session_state.pontos_por_segundo += item['qtd']
-                    st.session_state.pontos_leaderboard_cache = st.session_state.pontos
                     salvar_progresso_atual()
-                    time.sleep(0.1)
                     st.rerun()
 
 if st.session_state.nome_usuario:
@@ -1304,10 +1213,7 @@ if st.session_state.nome_usuario:
 # --- LOG DE ATUALIZAÇÕES ---
 st.markdown("---")
 st.subheader("Atualizações:")
-st.write("(3.0.0) - Criação do Painel do DEV exclusivo e limitação do painel ADM")
-st.write("(3.0.2) - Correção da oscilação/piscar da tela gerada pelo loop anti-lag utilizando fragmentação invisível.")
-st.write("(3.3.0) - Correção Definitiva do Sistema de Persistência no Navegador (LocalStorage Sync Fix).")
-st.write("(3.4.0) - Adicionado Sistema Global de Loja de Totens Místicos rotativos a cada 5 minutos.")
+st.write("(3.4.1) - Correção do Auto-Clicker em tempo real com sincronização a cada 1 segundo.")
 
 # --- 🏆 TABELA DE CLASSIFICAÇÃO GLOBAL ---
 st.markdown("---")
@@ -1333,17 +1239,15 @@ if os.path.exists(LEADERBOARD_FILE):
             st.info("O placar está vazio.")
     except Exception:
         st.info("O placar está vazio.")
-else:
-    st.info("O placar está vazio.")
 
-# --- SISTEMA DE RESET DE JOGO ---
+# --- RESET DE JOGO ---
 st.markdown("---")
 if not st.session_state.confirmando_reset:
     if st.button("Resetar Jogo", use_container_width=True):
         st.session_state.confirmando_reset = True
         st.rerun()
 else:
-    st.warning("⚠️ **Você tem certeza absoluta?** Isso apagará permanentemente todos os seus pontos, melhorias, mundos e pets salvos!")
+    st.warning("⚠️ **Você tem certeza absoluta?** Isso apagará permanentemente todos os seus pontos!")
     col_sim, col_nao = st.columns(2)
     
     with col_sim:
@@ -1361,11 +1265,8 @@ else:
                 }
                 salvar_todos_usuarios(usuarios)
             
-            # Limpa do navegador também se resetar tudo
             st.components.v1.html(f"""<script>window.parent.postMessage({{type: "REMOVE_ACCOUNT", user: "{user_key}"}}, "*");</script>""", height=0, width=0)
             resetar_estados_jogador_local()
-            st.success("Jogo reiniciado com sucesso!")
-            time.sleep(0.5)
             st.rerun()
             
     with col_nao:
