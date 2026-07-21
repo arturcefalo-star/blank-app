@@ -114,19 +114,27 @@ TOTENS_DISPONIVEIS = [
 
 def carregar_todos_usuarios():
   if os.path.exists(ACCOUNTS_FILE):
-    try:
-      with open(ACCOUNTS_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
-    except Exception:
-      return {}
+    for _ in range(3):  # Tenta até 3 vezes se houver leitura concorrente
+      try:
+        with open(ACCOUNTS_FILE, "r", encoding="utf-8") as f:
+          dados = json.load(f)
+          if isinstance(dados, dict):
+            return dados
+      except Exception:
+        time.sleep(0.05)
   return {}
 
 
 def salvar_todos_usuarios(usuarios):
-  with open(ACCOUNTS_FILE, "w", encoding="utf-8") as f:
-    json.dump(usuarios, f, ensure_ascii=False, indent=4)
-    f.flush()
-    os.fsync(f.fileno())
+  if not isinstance(usuarios, dict):
+    return
+  try:
+    with open(ACCOUNTS_FILE, "w", encoding="utf-8") as f:
+      json.dump(usuarios, f, ensure_ascii=False, indent=4)
+      f.flush()
+      os.fsync(f.fileno())
+  except Exception as e:
+    st.error(f"Erro ao salvar dados de usuários: {e}")
 
 
 def tem_titulo(titulo_necessario):
@@ -142,7 +150,7 @@ def tem_titulo(titulo_necessario):
 
 
 def salvar_progresso_atual():
-  if st.session_state.logado and st.session_state.nome_usuario:
+  if st.session_state.get("logado") and st.session_state.get("nome_usuario"):
     usuarios = carregar_todos_usuarios()
     username_key = st.session_state.nome_usuario.lower()
 
@@ -164,7 +172,7 @@ def salvar_progresso_atual():
           "ultimo_tick": st.session_state.ultimo_tick,
           "mundo_2_desbloqueado": st.session_state.mundo_2_desbloqueado,
           "mundo_atual": st.session_state.mundo_atual,
-          "titulo": usuarios[username_key]["dados"].get("titulo", ""),
+          "titulo": st.session_state.get("titulo", ""),
       }
       usuarios[username_key]["ultimo_login"] = time.strftime(
           "%Y-%m-%d %H:%M:%S"
@@ -201,10 +209,13 @@ def carregar_leaderboard():
 
 
 def salvar_leaderboard_completo(lista):
-  with open(LEADERBOARD_FILE, "w", encoding="utf-8") as f:
-    json.dump(lista, f, ensure_ascii=False, indent=4)
-    f.flush()
-    os.fsync(f.fileno())
+  try:
+    with open(LEADERBOARD_FILE, "w", encoding="utf-8") as f:
+      json.dump(lista, f, ensure_ascii=False, indent=4)
+      f.flush()
+      os.fsync(f.fileno())
+  except Exception:
+    pass
 
 
 def atualizar_no_leaderboard(nome, pontos):
@@ -262,10 +273,13 @@ def carregar_configuracoes_globais():
 
 
 def salvar_configuracoes_globais(dados):
-  with open(AVISOS_FILE, "w", encoding="utf-8") as f:
-    json.dump(dados, f, ensure_ascii=False, indent=4)
-    f.flush()
-    os.fsync(f.fileno())
+  try:
+    with open(AVISOS_FILE, "w", encoding="utf-8") as f:
+      json.dump(dados, f, ensure_ascii=False, indent=4)
+      f.flush()
+      os.fsync(f.fileno())
+  except Exception:
+    pass
 
 
 def resetar_estados_jogador_local():
@@ -343,25 +357,21 @@ bridge_data = st.text_input(
 )
 injetar_js_localstorage()
 
-try:
-  contas_locais = json.loads(bridge_data) if bridge_data else {}
-  if contas_locais:
-    usuarios_server = carregar_todos_usuarios()
-    alterou = False
-    for k, v in contas_locais.items():
-      if k not in usuarios_server:
-        usuarios_server[k] = v["dados_completos"]
-        alterou = True
-    if alterou:
-      salvar_todos_usuarios(usuarios_server)
-except Exception:
-  contas_locais = {}
-
-todos_usuarios_server = carregar_todos_usuarios()
-for k, v in contas_locais.items():
-  if k not in todos_usuarios_server:
-    todos_usuarios_server[k] = v["dados_completos"]
-salvar_todos_usuarios(todos_usuarios_server)
+# Sincronização segura da ponte JS para o servidor
+if bridge_data:
+  try:
+    contas_locais = json.loads(bridge_data)
+    if isinstance(contas_locais, dict) and contas_locais:
+      usuarios_server = carregar_todos_usuarios()
+      alterou = False
+      for k, v in contas_locais.items():
+        if k not in usuarios_server and "dados_completos" in v:
+          usuarios_server[k] = v["dados_completos"]
+          alterou = True
+      if alterou:
+        salvar_todos_usuarios(usuarios_server)
+  except Exception:
+    pass
 
 
 # =====================================================================
@@ -442,84 +452,92 @@ if not st.session_state.logado:
 
     if todos_usuarios_server:
       opcoes_contas = [
-          dados["nome_exibicao"] for dados in todos_usuarios_server.values()
+          dados["nome_exibicao"]
+          for dados in todos_usuarios_server.values()
+          if "nome_exibicao" in dados
       ]
-      conta_selecionada = st.selectbox(
-          "Escolha uma das contas registradas:", opcoes_contas
-      )
-      key_selecionada = conta_selecionada.lower()
-
-      st.markdown(
-          f"Para acessar **{conta_selecionada}**, confirme a senha de acesso:"
-      )
-      senha_confirmacao = st.text_input(
-          "Senha da Conta:", type="password", key="confirm_local_pass"
-      )
-
-      col_entrar, col_remover = st.columns([2, 1])
-
-      if col_entrar.button(
-          "Confirmar e Entrar", type="primary", use_container_width=True
-      ):
-        senha_salva = todos_usuarios_server[key_selecionada]["senha"]
-
-        if senha_confirmacao == senha_salva:
-          if todos_usuarios_server[key_selecionada].get("banido", False):
-            st.error(
-                "Esta conta está suspensa. Motivo:"
-                f" {todos_usuarios_server[key_selecionada].get('motivo_ban', 'Não informado')}"
-            )
-          else:
-            dados = todos_usuarios_server[key_selecionada]["dados"]
-            st.session_state.pontos = dados.get("pontos", 0)
-            st.session_state.poder_base = dados.get("poder_base", 1)
-            st.session_state.pontos_por_segundo = dados.get(
-                "pontos_por_segundo", 0
-            )
-            st.session_state.pet_slot_1 = dados.get("pet_slot_1", None)
-            st.session_state.pet_slot_2 = dados.get("pet_slot_2", None)
-            st.session_state.pet_slot_m2_1 = dados.get("pet_slot_m2_1", None)
-            st.session_state.pet_slot_m2_2 = dados.get("pet_slot_m2_2", None)
-            st.session_state.totem_equipado = dados.get("totem_equipado", None)
-            st.session_state.ultimo_tick = dados.get(
-                "ultimo_tick", time.time()
-            )
-            st.session_state.mundo_2_desbloqueado = dados.get(
-                "mundo_2_desbloqueado", False
-            )
-            st.session_state.mundo_atual = dados.get("mundo_atual", 1)
-            st.session_state.titulo = dados.get("titulo", "")
-            st.session_state.pontos_leaderboard_cache = dados.get("pontos", 0)
-
-            st.session_state.nome_usuario = todos_usuarios_server[
-                key_selecionada
-            ]["nome_exibicao"]
-            st.session_state.logado = True
-            st.session_state["tmp_logged_password"] = senha_salva
-
-            todos_usuarios_server[key_selecionada]["ultimo_login"] = (
-                time.strftime("%Y-%m-%d %H:%M:%S")
-            )
-            salvar_todos_usuarios(todos_usuarios_server)
-
-            st.success(f"Olá, {st.session_state.nome_usuario}!")
-            time.sleep(0.5)
-            st.rerun()
-        else:
-          st.error("Senha incorreta para a conta selecionada!")
-
-      if col_remover.button("Remover da Lista ❌", use_container_width=True):
-        del todos_usuarios_server[key_selecionada]
-        salvar_todos_usuarios(todos_usuarios_server)
-        remover_jogador_leaderboard(key_selecionada)
-        st.components.v1.html(
-            f"""<script>window.parent.postMessage({{type: "REMOVE_ACCOUNT", user: "{key_selecionada}"}}, "*");</script>""",
-            height=0,
-            width=0,
+      if opcoes_contas:
+        conta_selecionada = st.selectbox(
+            "Escolha uma das contas registradas:", opcoes_contas
         )
-        st.toast("Conta deletada do servidor!")
-        time.sleep(0.5)
-        st.rerun()
+        key_selecionada = conta_selecionada.lower()
+
+        st.markdown(
+            f"Para acessar **{conta_selecionada}**, confirme a senha de"
+            " acesso:"
+        )
+        senha_confirmacao = st.text_input(
+            "Senha da Conta:", type="password", key="confirm_local_pass"
+        )
+
+        col_entrar, col_remover = st.columns([2, 1])
+
+        if col_entrar.button(
+            "Confirmar e Entrar", type="primary", use_container_width=True
+        ):
+          senha_salva = todos_usuarios_server[key_selecionada]["senha"]
+
+          if senha_confirmacao == senha_salva:
+            if todos_usuarios_server[key_selecionada].get("banido", False):
+              st.error(
+                  "Esta conta está suspensa. Motivo:"
+                  f" {todos_usuarios_server[key_selecionada].get('motivo_ban', 'Não informado')}"
+              )
+            else:
+              dados = todos_usuarios_server[key_selecionada]["dados"]
+              st.session_state.pontos = dados.get("pontos", 0)
+              st.session_state.poder_base = dados.get("poder_base", 1)
+              st.session_state.pontos_por_segundo = dados.get(
+                  "pontos_por_segundo", 0
+              )
+              st.session_state.pet_slot_1 = dados.get("pet_slot_1", None)
+              st.session_state.pet_slot_2 = dados.get("pet_slot_2", None)
+              st.session_state.pet_slot_m2_1 = dados.get("pet_slot_m2_1", None)
+              st.session_state.pet_slot_m2_2 = dados.get("pet_slot_m2_2", None)
+              st.session_state.totem_equipado = dados.get(
+                  "totem_equipado", None
+              )
+              st.session_state.ultimo_tick = dados.get(
+                  "ultimo_tick", time.time()
+              )
+              st.session_state.mundo_2_desbloqueado = dados.get(
+                  "mundo_2_desbloqueado", False
+              )
+              st.session_state.mundo_atual = dados.get("mundo_atual", 1)
+              st.session_state.titulo = dados.get("titulo", "")
+              st.session_state.pontos_leaderboard_cache = dados.get(
+                  "pontos", 0
+              )
+
+              st.session_state.nome_usuario = todos_usuarios_server[
+                  key_selecionada
+              ]["nome_exibicao"]
+              st.session_state.logado = True
+              st.session_state["tmp_logged_password"] = senha_salva
+
+              todos_usuarios_server[key_selecionada]["ultimo_login"] = (
+                  time.strftime("%Y-%m-%d %H:%M:%S")
+              )
+              salvar_todos_usuarios(todos_usuarios_server)
+
+              st.success(f"Olá, {st.session_state.nome_usuario}!")
+              time.sleep(0.5)
+              st.rerun()
+          else:
+            st.error("Senha incorreta para a conta selecionada!")
+
+        if col_remover.button("Remover da Lista ❌", use_container_width=True):
+          del todos_usuarios_server[key_selecionada]
+          salvar_todos_usuarios(todos_usuarios_server)
+          remover_jogador_leaderboard(key_selecionada)
+          st.components.v1.html(
+              f"""<script>window.parent.postMessage({{type: "REMOVE_ACCOUNT", user: "{key_selecionada}"}}, "*");</script>""",
+              height=0,
+              width=0,
+          )
+          st.toast("Conta deletada do servidor!")
+          time.sleep(0.5)
+          st.rerun()
     else:
       st.info(
           "Nenhuma conta cadastrada no servidor ainda. Crie uma nova conta na"
@@ -640,28 +658,16 @@ if "ultimo_tick" not in st.session_state:
 if "totem_equipado" not in st.session_state:
   st.session_state.totem_equipado = None
 
-usuarios_temp = carregar_todos_usuarios()
-user_key_temp = st.session_state.nome_usuario.lower()
-if user_key_temp in usuarios_temp:
-  st.session_state.titulo = usuarios_temp[user_key_temp]["dados"].get(
-      "titulo", ""
-  )
-  st.session_state.totem_equipado = usuarios_temp[user_key_temp]["dados"].get(
-      "totem_equipado", None
-  )
-else:
-  st.session_state.titulo = ""
-  st.session_state.totem_equipado = None
-
 config_globais = carregar_configuracoes_globais()
 aviso_sistema = config_globais.get("mensagem", "")
 mult_evento = config_globais.get("multiplicador_evento", 1)
 mult_sorte = config_globais.get("multiplicador_sorte", 1)
 
 
+# Gerador isolado de totens sem modificar o seed global
 def obter_totens_da_rodada():
   minuto_atual = int(time.time() / 300)
-  random.seed(minuto_atual)
+  rng = random.Random(minuto_atual)
 
   totens_escolhidos = []
   pool_copia = list(TOTENS_DISPONIVEIS)
@@ -670,11 +676,10 @@ def obter_totens_da_rodada():
     if not pool_copia:
       break
     pesos = [t["chance"] for t in pool_copia]
-    sorteado = random.choices(pool_copia, weights=pesos, k=1)[0]
+    sorteado = rng.choices(pool_copia, weights=pesos, k=1)[0]
     totens_escolhidos.append(sorteado)
     pool_copia.remove(sorteado)
 
-  random.seed()
   return totens_escolhidos
 
 
@@ -907,7 +912,6 @@ with st.sidebar:
           st.success(f"Poder base de {name_jogador} atualizado!")
           st.rerun()
 
-        # CORREÇÃO AQUI: Chave alterada para f"dev_pps_{key_jogador}_{i}"
         if col_dev_pps.button("Pontos/s", key=f"dev_pps_{key_jogador}_{i}"):
           novo_pps = max(
               0,
@@ -1716,7 +1720,7 @@ def renderizar_loja_totens():
       btn_desativado = st.session_state.pontos < totem["custo"]
       if st.button(
           "Comprar Totem",
-          key=f"btn_buy_totem_{idx}",
+          key=f"btn_buy_totem_{totem['nome'].replace(' ', '_')}",
           disabled=btn_desativado,
           use_container_width=True,
       ):
@@ -1725,6 +1729,8 @@ def renderizar_loja_totens():
           st.session_state.totem_equipado = totem
           atualizar_poder_clique()
           salvar_progresso_atual()
+          st.success(f"Você comprou {totem['nome']}!")
+          time.sleep(0.3)
           st.rerun()
 
   if st.button("❌ Fechar Loja", key="btn_fechar_totens", use_container_width=True):
@@ -1836,8 +1842,8 @@ if st.session_state.nome_usuario:
 st.markdown("---")
 st.subheader("Atualizações:")
 st.write(
-    "(3.6.0) - Removido delay dos ovos, corrigido Totem de Ouro e evento de"
-    " sorte ajustado apenas para pets raros!"
+    "(3.6.1) - Corrigida persistência de contas e sincronização da loja e"
+    " totens!"
 )
 
 # --- 🏆 TABELA DE CLASSIFICAÇÃO GLOBAL ---
