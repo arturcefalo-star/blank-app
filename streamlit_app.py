@@ -3,7 +3,7 @@ import os
 import random
 import time
 import uuid
-import streamlit as stbb
+import streamlit as st
 import streamlit.components.v1 as components
 from streamlit_autorefresh import st_autorefresh
 
